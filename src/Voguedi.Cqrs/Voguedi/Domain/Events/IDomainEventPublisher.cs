@@ -1,6 +1,5 @@
 ﻿using System.Threading.Tasks;
 using Voguedi.AsyncExecution;
-using Voguedi.Commands;
 
 namespace Voguedi.Domain.Events
 {
@@ -8,7 +7,7 @@ namespace Voguedi.Domain.Events
     {
         #region Methods
 
-        Task<AsyncExecutionResult> PublisherAsync(DomainEventStream stream);
+        Task<AsyncExecutionResult> PublisheAsync(DomainEventStream stream);
 
         #endregion
     }

@@ -1,13 +1,10 @@
-﻿using System.Threading.Tasks;
-using Voguedi.AsyncExecution;
-
-namespace Voguedi.Domain.Events
+﻿namespace Voguedi.Domain.Events
 {
     public interface IDomainEventCommitter
     {
         #region Methods
 
-        Task<AsyncExecutionResult> CommitAsync(CommittingDomainEvent committingEvent);
+        void Commit(CommittingDomainEvent committingEvent);
 
         #endregion
     }

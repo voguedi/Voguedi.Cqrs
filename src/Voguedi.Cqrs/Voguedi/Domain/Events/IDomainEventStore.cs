@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Voguedi.AsyncExecution;
 
 namespace Voguedi.Domain.Events
@@ -8,7 +7,11 @@ namespace Voguedi.Domain.Events
     {
         #region Methods
 
+        Task<AsyncExecutionResult<DomainEventStreamSavedResult>> SaveStreamAsync(DomainEventStream stream);
+
         Task<AsyncExecutionResult<DomainEventStream>> GetStreamAsync(string aggregateRootId, string commandId);
+
+        Task<AsyncExecutionResult<DomainEventStream>> GetStreamAsync(string aggregateRootId, long version);
 
         #endregion
     }

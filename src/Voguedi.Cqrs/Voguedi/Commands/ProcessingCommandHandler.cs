@@ -62,7 +62,7 @@ namespace Voguedi.Commands
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"命令处理器执行失败，尝试获取已产生的领域事件并发布！ [CommandType = {command.GetType()}, CommandId = {command.Id}, CommandHandlerType = {handlerType}]");
+                logger.LogError(ex, $"命令处理器执行失败！ [CommandType = {command.GetType()}, CommandId = {command.Id}, CommandHandlerType = {handlerType}]");
                 await TryGetAndPublishEventStreamAsync(processingCommand);
             }
 
@@ -101,6 +101,7 @@ namespace Voguedi.Commands
         async Task TryGetAndPublishEventStreamAsync(ProcessingCommand processingCommand)
         {
             var command = processingCommand.Command;
+            var aggregateRootId = command.GetAggregateRootId();
             var result = await eventStore.GetStreamAsync(command.GetAggregateRootId(), command.Id);
 
             if (result.Succeeded)
@@ -108,16 +109,19 @@ namespace Voguedi.Commands
                 var eventStream = result.Data;
 
                 if (eventStream != null)
+                {
+                    logger.LogInformation($"获取命令产生的领域事件成功！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRootId = {aggregateRootId}, DomainEventStream = {eventStream}]");
                     await PublishEventStreamAsync(processingCommand, eventStream);
+                }
                 else
                 {
-                    logger.LogError($"未获取到任何命令产生的领域事件！ [CommandType = {command.GetType()}, CommandId = {command.Id}]");
+                    logger.LogError($"未获取到任何命令产生的领域事件！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRootId = {aggregateRootId}]");
                     await processingCommand.OnQueueRejectedAsync();
                 }
             }
             else
             {
-                logger.LogError(result.Exception, $"命令产生的领域事件获取失败！ [CommandType = {command.GetType()}, CommandId = {command.Id}]");
+                logger.LogError(result.Exception, $"获取命令产生的领域事件失败！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRootId = {aggregateRootId}]");
                 await processingCommand.OnQueueRejectedAsync();
             }
         }
@@ -125,7 +129,7 @@ namespace Voguedi.Commands
         async Task PublishEventStreamAsync(ProcessingCommand processingCommand, DomainEventStream eventStream)
         {
             var command = processingCommand.Command;
-            var result = await eventPublisher.PublisherAsync(eventStream);
+            var result = await eventPublisher.PublisheAsync(eventStream);
 
             if (result.Succeeded)
             {
@@ -153,8 +157,8 @@ namespace Voguedi.Commands
                     aggregateRoot.GetId(),
                     aggregateRoot.GetVersion() + 1,
                     aggregateRoot.GetUncommittedEvents());
-                var committingEvent = new CommittingDomainEvent(processingCommand, aggregateRoot, eventStream);
-                await CommitEventAsync(committingEvent);
+                var committingEvent = new CommittingDomainEvent(eventStream, processingCommand, aggregateRoot);
+                eventCommitter.Commit(committingEvent);
             }
             else if (aggregateRoots?.Count() > 1)
             {
@@ -163,27 +167,8 @@ namespace Voguedi.Commands
             }
             else
             {
-                logger.LogWarning($"命令未处理任何聚合根，尝试获取已产生的领域事件并发布！ [CommandType = {command.GetType()}, CommandId = {command.Id}]");
+                logger.LogWarning($"命令未处理任何聚合根！ [CommandType = {command.GetType()}, CommandId = {command.Id}]");
                 await TryGetAndPublishEventStreamAsync(processingCommand);
-            }
-        }
-
-        async Task CommitEventAsync(CommittingDomainEvent committingEvent)
-        {
-            var processingCommand = committingEvent.ProcessingCommand;
-            var command = processingCommand.Command;
-            var aggregateRoot = committingEvent.AggregateRoot;
-            var result = await eventCommitter.CommitAsync(committingEvent);
-
-            if (result.Succeeded)
-            {
-                logger.LogInformation($"命令产生的领域事件提交成功！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRootType = {aggregateRoot.GetType()}, AggregateRootId = {aggregateRoot.GetId()}, DomainEventStream = {committingEvent.Stream}]");
-                await processingCommand.OnQueueCommittedAsync();
-            }
-            else
-            {
-                logger.LogError(result.Exception, $"命令产生的领域事件提交失败！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRootType = {aggregateRoot.GetType()}, AggregateRootId = {aggregateRoot.GetId()}, DomainEventStream = {committingEvent.Stream}]");
-                await processingCommand.OnQueueRejectedAsync();
             }
         }
 

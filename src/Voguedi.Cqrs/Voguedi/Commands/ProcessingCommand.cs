@@ -7,9 +7,9 @@ namespace Voguedi.Commands
     {
         #region Public Properties
 
-        public IMessageConsumer Consumer { get; }
-
         public ICommand Command { get; }
+
+        public IMessageConsumer Consumer { get; }
 
         public IProcessingCommandQueue Queue { get; set; }
 
@@ -19,10 +19,10 @@ namespace Voguedi.Commands
 
         #region Ctors
 
-        public ProcessingCommand(IMessageConsumer consumer, ICommand command)
+        public ProcessingCommand(ICommand command, IMessageConsumer consumer)
         {
-            Consumer = consumer;
             Command = command;
+            Consumer = consumer;
         }
 
         #endregion

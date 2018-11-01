@@ -77,7 +77,7 @@ namespace Voguedi.Commands
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"命令处理队列启动失败，等待并重新启动！ [AggregateRootId = {aggregateRootId}, CommandType = {processingCommand?.Command?.GetType()}, CommandId = {processingCommand?.Command?.Id}]");
+                logger.LogError(ex, $"命令处理队列启动失败！ [AggregateRootId = {aggregateRootId}, CommandType = {processingCommand?.Command?.GetType()}, CommandId = {processingCommand?.Command?.Id}]");
                 Thread.Sleep(1);
             }
             finally

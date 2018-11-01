@@ -7,21 +7,23 @@ namespace Voguedi.Domain.Events
     {
         #region Public Properties
 
+        public DomainEventStream Stream { get; }
+
         public ProcessingCommand ProcessingCommand { get; }
 
         public IEventSourcedAggregateRoot AggregateRoot { get; }
 
-        public DomainEventStream Stream { get; }
+        public ICommittingDomainEventQueue Queue { get; set; }
 
         #endregion
 
         #region Ctors
 
-        public CommittingDomainEvent(ProcessingCommand processingCommand, IEventSourcedAggregateRoot aggregateRoot, DomainEventStream stream)
+        public CommittingDomainEvent(DomainEventStream stream, ProcessingCommand processingCommand, IEventSourcedAggregateRoot aggregateRoot)
         {
+            Stream = stream;
             ProcessingCommand = processingCommand;
             AggregateRoot = aggregateRoot;
-            Stream = stream;
         }
 
         #endregion
