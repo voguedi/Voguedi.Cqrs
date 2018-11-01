@@ -24,12 +24,12 @@ namespace Voguedi.Commands
         const int starting = 1;
         const int stop = 0;
         const int timeout = 1000;
-        int isStarting = 0;
-        bool isPausing = false;
-        bool isProcessing = false;
+        int isStarting;
+        bool isPausing;
+        bool isProcessing;
         long previousSequence = -1;
-        long currentSequence = 0;
-        long nextSequence = 1;
+        long currentSequence;
+        long nextSequence;
 
         #endregion
 
@@ -93,24 +93,42 @@ namespace Voguedi.Commands
 
         void Stop() => Interlocked.Exchange(ref isStarting, stop);
 
-        async Task<long> CommitWaiting(long sequence)
+        async Task<long> CommitWaitingAsync(long committingSequence)
         {
-            var result = sequence;
-            var next = sequence + 1;
-            var waiting = default(ProcessingCommand);
-            var removed = default(ProcessingCommand);
+            var commitedSequence = committingSequence;
+            var waitingSequence = committingSequence + 1;
+            var waitingProcessingCommand = default(ProcessingCommand);
 
-            while (waitingQueue.ContainsKey(next))
+            while (waitingQueue.ContainsKey(waitingSequence))
             {
-                if (queue.TryRemove(next, out waiting))
-                    await waiting.OnConsumerCommittedAsync();
+                if (queue.TryRemove(waitingSequence, out waitingProcessingCommand))
+                    await waitingProcessingCommand.OnConsumerCommittedAsync();
 
-                waitingQueue.TryRemove(next, out removed);
-                result = next;
-                next++;
+                waitingQueue.TryRemove(waitingSequence);
+                commitedSequence = waitingSequence;
+                waitingSequence++;
             }
 
-            return result;
+            return commitedSequence;
+        }
+
+        async Task<long> RejectWaitingAsync(long rejectingSequence)
+        {
+            var rejectedSequence = rejectingSequence;
+            var waitingSequence = rejectingSequence + 1;
+            var waitingProcessingCommand = default(ProcessingCommand);
+
+            while (waitingQueue.ContainsKey(waitingSequence))
+            {
+                if (queue.TryRemove(waitingSequence, out waitingProcessingCommand))
+                    await waitingProcessingCommand.OnConsumerRejectedAsync();
+
+                waitingQueue.TryRemove(waitingSequence);
+                rejectedSequence = waitingSequence;
+                waitingSequence++;
+            }
+
+            return rejectedSequence;
         }
 
         #endregion
@@ -162,20 +180,61 @@ namespace Voguedi.Commands
             using (await asyncLock.LockAsync())
             {
                 var command = processingCommand.Command;
-                var sequence = processingCommand.QueueSequence;
+                var committingSequence = processingCommand.QueueSequence;
+                var exceptedSequence = previousSequence + 1;
 
                 try
                 {
-                    if (sequence == previousSequence + 1)
+                    if (committingSequence == exceptedSequence)
                     {
                         queue.TryRemove(processingCommand.QueueSequence, out var removed);
                         await processingCommand.OnConsumerCommittedAsync();
-
+                        previousSequence = await CommitWaitingAsync(committingSequence);
+                    }
+                    else if (committingSequence > exceptedSequence)
+                        waitingQueue[committingSequence] = processingCommand;
+                    else if (committingSequence < exceptedSequence)
+                    {
+                        queue.TryRemove(committingSequence);
+                        await processingCommand.OnConsumerCommittedAsync();
+                        waitingQueue.TryRemove(committingSequence);
                     }
                 }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, $"命令处理队列提交失败！ [AggregateRootId = {aggregateRootId}, CommandType = {command.GetType()}, CommandId = {command.Id}]");
+                }
+            }
+        }
+
+        public async Task RejectAsync(ProcessingCommand processingCommand)
+        {
+            using (await asyncLock.LockAsync())
+            {
+                var command = processingCommand.Command;
+                var rejectingSequence = processingCommand.QueueSequence;
+                var exceptedSequence = previousSequence + 1;
+
+                try
+                {
+                    if (rejectingSequence == exceptedSequence)
+                    {
+                        queue.TryRemove(processingCommand.QueueSequence, out var removed);
+                        await processingCommand.OnConsumerRejectedAsync();
+                        previousSequence = await RejectWaitingAsync(rejectingSequence);
+                    }
+                    else if (rejectingSequence > exceptedSequence)
+                        await processingCommand.OnConsumerRejectedAsync();
+                    else if (rejectingSequence < exceptedSequence)
+                    {
+                        queue.TryRemove(rejectingSequence);
+                        await processingCommand.OnConsumerRejectedAsync();
+                        waitingQueue.TryRemove(rejectingSequence);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, $"命令处理队列拒绝失败！ [AggregateRootId = {aggregateRootId}, CommandType = {command.GetType()}, CommandId = {command.Id}]");
                 }
             }
         }
