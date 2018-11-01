@@ -193,7 +193,7 @@ namespace Voguedi.Commands
                     }
                     else if (committingSequence > exceptedSequence)
                         waitingQueue[committingSequence] = processingCommand;
-                    else if (committingSequence < exceptedSequence)
+                    else
                     {
                         queue.TryRemove(committingSequence);
                         await processingCommand.OnConsumerCommittedAsync();
@@ -225,7 +225,7 @@ namespace Voguedi.Commands
                     }
                     else if (rejectingSequence > exceptedSequence)
                         await processingCommand.OnConsumerRejectedAsync();
-                    else if (rejectingSequence < exceptedSequence)
+                    else
                     {
                         queue.TryRemove(rejectingSequence);
                         await processingCommand.OnConsumerRejectedAsync();
