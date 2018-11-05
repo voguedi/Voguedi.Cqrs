@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Voguedi.ActiveCheckers;
+using Voguedi.Schedulers;
 using Voguedi.DisposableObjects;
 
 namespace Voguedi.Commands
@@ -13,7 +13,7 @@ namespace Voguedi.Commands
         #region Private Fields
 
         readonly IProcessingCommandQueueFactory queueFactory;
-        readonly IMemoryQueueActiveChecker queueActiveChecker;
+        readonly IScheduler scheduler;
         readonly ILogger logger;
         readonly int queueActiveExpiration;
         readonly ConcurrentDictionary<string, IProcessingCommandQueue> queueMapping = new ConcurrentDictionary<string, IProcessingCommandQueue>();
@@ -24,10 +24,10 @@ namespace Voguedi.Commands
 
         #region Ctors
 
-        public CommandProcessor(IProcessingCommandQueueFactory queueFactory, IMemoryQueueActiveChecker queueActiveChecker, ILogger<CommandProcessor> logger, VoguediOptions options)
+        public CommandProcessor(IProcessingCommandQueueFactory queueFactory, IScheduler scheduler, ILogger<CommandProcessor> logger, VoguediOptions options)
         {
             this.queueFactory = queueFactory;
-            this.queueActiveChecker = queueActiveChecker;
+            this.scheduler = scheduler;
             this.logger = logger;
             queueActiveExpiration = options.MemoryQueueActiveExpiration;
         }
@@ -41,7 +41,7 @@ namespace Voguedi.Commands
             if (!disposed)
             {
                 if (disposing)
-                    queueActiveChecker.Stop(nameof(CommandProcessor));
+                    scheduler.Stop(nameof(CommandProcessor));
 
                 disposed = true;
             }
@@ -80,7 +80,7 @@ namespace Voguedi.Commands
             if (string.IsNullOrWhiteSpace(aggregateRootId))
                 throw new ArgumentException(nameof(processingCommand), $"命令处理的聚合根 Id 不能为空！ [CommandType = {command.GetType()}, CommandId = {command.Id}]");
 
-            var queue = queueMapping.GetOrAdd(aggregateRootId, key => queueFactory.Create(key));
+            var queue = queueMapping.GetOrAdd(aggregateRootId, queueFactory.Create);
             queue.Enqueue(processingCommand);
             return Task.CompletedTask;
         }
@@ -89,7 +89,7 @@ namespace Voguedi.Commands
         {
             if (!started)
             {
-                queueActiveChecker.Start(nameof(CommandProcessor), ClearInactiveQueue, queueActiveExpiration);
+                scheduler.Start(nameof(CommandProcessor), ClearInactiveQueue, queueActiveExpiration, queueActiveExpiration);
                 started = true;
             }
         }

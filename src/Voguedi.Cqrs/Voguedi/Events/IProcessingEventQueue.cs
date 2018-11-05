@@ -1,9 +1,8 @@
 ﻿using System.Threading.Tasks;
-using Voguedi.ActiveCheckers;
 
 namespace Voguedi.Events
 {
-    public interface IProcessingEventQueue : IMemoryQueueActiveContext
+    public interface IProcessingEventQueue
     {
         #region Methods
 
@@ -14,6 +13,8 @@ namespace Voguedi.Events
         Task CommitAsync(ProcessingEvent processingEvent);
 
         Task RejectAsync(ProcessingEvent processingEvent);
+
+        bool IsInactive(int expiration);
 
         #endregion
     }

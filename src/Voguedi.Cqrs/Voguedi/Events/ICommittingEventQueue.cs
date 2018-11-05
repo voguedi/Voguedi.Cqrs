@@ -1,14 +1,14 @@
-﻿using Voguedi.ActiveCheckers;
-
-namespace Voguedi.Events
+﻿namespace Voguedi.Events
 {
-    public interface ICommittingEventQueue : IMemoryQueueActiveContext
+    public interface ICommittingEventQueue
     {
         #region Methods
 
         void Enqueue(CommittingEvent committingEvent);
 
         void Clear();
+
+        bool IsInactive(int expiration);
 
         #endregion
     }

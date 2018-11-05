@@ -18,8 +18,6 @@ namespace Voguedi.Events
         readonly IServiceProvider serviceProvider;
         readonly ILogger logger;
         readonly ConcurrentDictionary<Type, IReadOnlyList<IEventHandler>> handlerMapping = new ConcurrentDictionary<Type, IReadOnlyList<IEventHandler>>();
-        const int retryTimes = 3;
-        const int retryInterval = 1000;
 
         #endregion
 

@@ -1,9 +1,8 @@
 ﻿using System.Threading.Tasks;
-using Voguedi.ActiveCheckers;
 
 namespace Voguedi.Commands
 {
-    public interface IProcessingCommandQueue : IMemoryQueueActiveContext
+    public interface IProcessingCommandQueue
     {
         #region Methods
 
@@ -18,6 +17,8 @@ namespace Voguedi.Commands
         Task CommitAsync(ProcessingCommand processingCommand);
 
         Task RejectAsync(ProcessingCommand processingCommand);
+
+        bool IsInactive(int expiration);
 
         #endregion
     }

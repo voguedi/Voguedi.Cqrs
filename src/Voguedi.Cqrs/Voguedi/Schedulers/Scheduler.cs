@@ -3,9 +3,9 @@ using System.Collections.Concurrent;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 
-namespace Voguedi.ActiveCheckers
+namespace Voguedi.Schedulers
 {
-    class MemoryQueueActiveChecker : IMemoryQueueActiveChecker
+    class Scheduler : IScheduler
     {
         #region Private Class
 
@@ -19,9 +19,11 @@ namespace Voguedi.ActiveCheckers
 
             public Timer Timer { get; set; }
 
-            public int Eexpiration { get; set; }
+            public int DueTime { get; set; }
 
-            public bool Stopped { get; set; }
+            public int Period { get; set; }
+
+            public bool Started { get; set; }
 
             #endregion
         }
@@ -38,7 +40,7 @@ namespace Voguedi.ActiveCheckers
 
         #region Ctors
 
-        public MemoryQueueActiveChecker(ILogger<MemoryQueueActiveChecker> logger) => this.logger = logger;
+        public Scheduler(ILogger<Scheduler> logger) => this.logger = logger;
 
         #endregion
 
@@ -52,7 +54,7 @@ namespace Voguedi.ActiveCheckers
             {
                 try
                 {
-                    if (!context.Stopped)
+                    if (context.Started)
                     {
                         context.Timer.Change(Timeout.Infinite, Timeout.Infinite);
                         context.Action?.Invoke();
@@ -60,18 +62,18 @@ namespace Voguedi.ActiveCheckers
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, $"内存队列存活检查器当前状态异常！ [Key = {context.Key}, Eexpiration = {context.Eexpiration}]");
+                    logger.LogError(ex, $"调度器当前状态异常！ [Key = {context.Key}, DueTime = {context.DueTime}, Period = {context.Period}]");
                 }
                 finally
                 {
                     try
                     {
-                        if (!context.Stopped)
-                            context.Timer.Change(Timeout.Infinite, Timeout.Infinite);
+                        if (context.Started)
+                            context.Timer.Change(context.Period, context.Period);
                     }
                     catch (Exception ex)
                     {
-                        logger.LogError(ex, $"内存队列存活检查器当前状态异常！ [Key = {context.Key}, Eexpiration = {context.Eexpiration}]");
+                        logger.LogError(ex, $"调度器当前状态异常！ [Key = {context.Key}, DueTime = {context.DueTime}, Period = {context.Period}]");
                     }
                 }
             }
@@ -79,9 +81,9 @@ namespace Voguedi.ActiveCheckers
 
         #endregion
 
-        #region IMemoryQueueActiveChecker
+        #region IScheduler
 
-        public void Start(string key, Action action, int expiration)
+        public void Start(string key, Action action, int dueTime, int period)
         {
             lock (syncLock)
             {
@@ -93,12 +95,13 @@ namespace Voguedi.ActiveCheckers
                         new SchedulerContext
                         {
                             Action = action,
-                            Eexpiration = expiration,
+                            DueTime = dueTime,
                             Key = key,
-                            Stopped = false,
+                            Period = period,
+                            Started = true,
                             Timer = timer
                         });
-                    timer.Change(expiration, expiration);
+                    timer.Change(dueTime, period);
                 }
             }
         }
@@ -109,7 +112,7 @@ namespace Voguedi.ActiveCheckers
             {
                 if (contextMapping.TryGetValue(key, out var context))
                 {
-                    context.Stopped = true;
+                    context.Started = false;
                     context.Timer.Dispose();
                     contextMapping.TryRemove(key);
                 }

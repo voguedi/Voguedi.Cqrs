@@ -10,4 +10,7 @@
     <PackageReference Include="Voguedi.Utils" Version="1.1.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Voguedi\Processors\" />
+  </ItemGroup>
 </Project>

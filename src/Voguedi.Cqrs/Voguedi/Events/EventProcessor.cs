@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Voguedi.ActiveCheckers;
+using Voguedi.Schedulers;
 using Voguedi.DisposableObjects;
 
 namespace Voguedi.Events
@@ -13,7 +13,7 @@ namespace Voguedi.Events
         #region Private Fields
 
         readonly IProcessingEventQueueFactory queueFactory;
-        readonly IMemoryQueueActiveChecker queueActiveChecker;
+        readonly IScheduler scheduler;
         readonly ILogger logger;
         readonly int queueActiveExpiration;
         readonly ConcurrentDictionary<string, IProcessingEventQueue> queueMapping = new ConcurrentDictionary<string, IProcessingEventQueue>();
@@ -24,10 +24,10 @@ namespace Voguedi.Events
 
         #region Ctors
 
-        public EventProcessor(IProcessingEventQueueFactory queueFactory, IMemoryQueueActiveChecker queueActiveChecker, ILogger<EventProcessor> logger, VoguediOptions options)
+        public EventProcessor(IProcessingEventQueueFactory queueFactory, IScheduler scheduler, ILogger<EventProcessor> logger, VoguediOptions options)
         {
             this.queueFactory = queueFactory;
-            this.queueActiveChecker = queueActiveChecker;
+            this.scheduler = scheduler;
             this.logger = logger;
             queueActiveExpiration = options.MemoryQueueActiveExpiration;
         }
@@ -41,7 +41,7 @@ namespace Voguedi.Events
             if (!disposed)
             {
                 if (disposing)
-                    queueActiveChecker.Stop(nameof(EventProcessor));
+                    scheduler.Stop(nameof(EventProcessor));
 
                 disposed = true;
             }
@@ -79,7 +79,7 @@ namespace Voguedi.Events
             if (string.IsNullOrWhiteSpace(aggregateRootId))
                 throw new ArgumentException(nameof(processingEvent), $"处理事件的聚合根 Id 不能为空！");
 
-            var queue = queueMapping.GetOrAdd(aggregateRootId, key => queueFactory.Create(key));
+            var queue = queueMapping.GetOrAdd(aggregateRootId, queueFactory.Create);
             queue.Enqueue(processingEvent);
             return Task.CompletedTask;
         }
@@ -88,7 +88,7 @@ namespace Voguedi.Events
         {
             if (!started)
             {
-                queueActiveChecker.Start(nameof(EventProcessor), ClearInactiveQueue, queueActiveExpiration);
+                scheduler.Start(nameof(EventProcessor), ClearInactiveQueue, queueActiveExpiration, queueActiveExpiration);
                 started = true;
             }
         }
