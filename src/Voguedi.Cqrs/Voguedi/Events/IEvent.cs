@@ -6,11 +6,16 @@ namespace Voguedi.Events
     {
         #region Properties
 
-        string AggregateRootTypeName { get; set; }
-
-        string AggregateRootId { get; set; }
-
         long Version { get; set; }
+
+        #endregion
+    }
+
+    public interface IEvent<TIdentity> : IEvent
+    {
+        #region Properties
+
+        TIdentity AggregateRootId { get; set; }
 
         #endregion
     }

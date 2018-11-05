@@ -7,17 +7,17 @@ namespace Voguedi.Domain.AggregateRoots
     {
         #region Methods
 
-        IReadOnlyList<IEvent> GetUncommittedEvents();
-
-        void CommitEvents(long committedVersion);
-
-        void ReplayEvents(IReadOnlyList<EventStream> eventStreams);
-
         string GetId();
 
         string GetTypeName();
 
         long GetVersion();
+
+        IReadOnlyList<IEvent> GetUncommittedEvents();
+
+        void CommitEvents(long committedVersion);
+
+        void ReplayEvents(IReadOnlyList<EventStream> eventStreams);
 
         #endregion
     }

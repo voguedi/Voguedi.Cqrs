@@ -2,8 +2,5 @@
 
 namespace Voguedi.Domain.AggregateRoots
 {
-    public interface IAggregateRoot<TIdentity> : IEntity<TIdentity>
-    {
-
-    }
+    public interface IAggregateRoot<TIdentity> : IEntity<TIdentity>, IEventSourcedAggregateRoot { }
 }
