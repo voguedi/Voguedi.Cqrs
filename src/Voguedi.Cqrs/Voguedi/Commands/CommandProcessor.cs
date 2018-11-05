@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 namespace Voguedi.Commands
 {
@@ -20,7 +21,7 @@ namespace Voguedi.Commands
 
         #region ICommandProcessor
 
-        public void Process(ProcessingCommand processingCommand)
+        public Task ProcessAsync(ProcessingCommand processingCommand)
         {
             var command = processingCommand.Command;
             var aggregateRootId = command.GetAggregateRootId();
@@ -30,6 +31,7 @@ namespace Voguedi.Commands
 
             var queue = queueMapping.GetOrAdd(aggregateRootId, key => queueFactory.Create(key));
             queue.Enqueue(processingCommand);
+            return Task.CompletedTask;
         }
 
         #endregion

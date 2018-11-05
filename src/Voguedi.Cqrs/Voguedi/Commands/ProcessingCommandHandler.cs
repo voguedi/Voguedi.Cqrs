@@ -51,23 +51,19 @@ namespace Voguedi.Commands
             var commandType = command.GetType();
             var handlerType = handler.GetType();
             var context = contextFactory.Create();
-            var handled = false;
 
             try
             {
                 var handlerMethod = handlerType.GetTypeInfo().GetMethod("HandleAsync", new[] { context.GetType(), commandType });
                 await (Task)handlerMethod.Invoke(handler, new object[] { context, command });
                 logger.LogInformation($"命令处理器执行成功！ [CommandType = {commandType}, CommandId = {command.Id}, CommandHandlerType = {handlerType}]");
-                handled = true;
+                await TryGetAndCommitEvent(processingCommand, context);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, $"命令处理器执行失败！ [CommandType = {commandType}, CommandId = {command.Id}, CommandHandlerType = {handlerType}]");
                 await TryGetAndPublishEventStreamAsync(processingCommand);
             }
-
-            if (handled)
-                await TryGetAndCommitEvent(processingCommand, context);
         }
 
         Task TryGetAndHandleCommandAsync(ProcessingCommand processingCommand)
@@ -129,7 +125,7 @@ namespace Voguedi.Commands
         async Task PublishEventStreamAsync(ProcessingCommand processingCommand, EventStream eventStream)
         {
             var command = processingCommand.Command;
-            var result = await eventPublisher.PublisheAsync(eventStream);
+            var result = await eventPublisher.PublishStreamAsync(eventStream);
 
             if (result.Succeeded)
             {
@@ -143,7 +139,7 @@ namespace Voguedi.Commands
             }
         }
 
-        async Task TryGetAndCommitEvent(ProcessingCommand processingCommand, IProcessingCommandHandlerContext context)
+        Task TryGetAndCommitEvent(ProcessingCommand processingCommand, IProcessingCommandHandlerContext context)
         {
             var command = processingCommand.Command;
             var aggregateRoots = context.GetAggregateRoots().Where(a => a.GetUncommittedEvents().Any());
@@ -158,18 +154,17 @@ namespace Voguedi.Commands
                     aggregateRoot.GetVersion() + 1,
                     aggregateRoot.GetUncommittedEvents());
                 var committingEvent = new CommittingEvent(eventStream, processingCommand, aggregateRoot);
-                eventCommitter.Commit(committingEvent);
+                return eventCommitter.CommitAsync(committingEvent);
             }
-            else if (aggregateRoots?.Count() > 1)
+
+            if (aggregateRoots?.Count() > 1)
             {
                 logger.LogError($"命令处理超过1个聚合根！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRoots = [{string.Join(" | ", aggregateRoots.Select(a => $"Type = {a.GetType()}, Id = {a.GetId()}"))}]]");
-                await processingCommand.OnQueueRejectedAsync();
+                return processingCommand.OnQueueRejectedAsync();
             }
-            else
-            {
-                logger.LogWarning($"命令未处理任何聚合根！ [CommandType = {command.GetType()}, CommandId = {command.Id}]");
-                await TryGetAndPublishEventStreamAsync(processingCommand);
-            }
+
+            logger.LogWarning($"命令未处理任何聚合根！ [CommandType = {command.GetType()}, CommandId = {command.Id}]");
+            return TryGetAndPublishEventStreamAsync(processingCommand);
         }
 
         #endregion

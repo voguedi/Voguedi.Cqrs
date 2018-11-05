@@ -46,22 +46,24 @@ namespace Voguedi.Events
                 {
                     var queue = BuildHandlingEventQueue(events, serviceScope);
 
-                    if (queue.TryDequeue(out var current) && current.Event != null && current.Handler != null)
+                    if (!queue.IsCompleted && queue.TryTake(out var current) && current.Event != null && current.Handler != null)
                         return HandleEventAsync(processingEvent, current, queue);
+
+                    return SaveVersionAsync(processingEvent);
                 }
             }
 
             return processingEvent.OnQueueCommittedAsync();
         }
 
-        ConcurrentQueue<(IEvent Event, IEventHandler Handler)> BuildHandlingEventQueue(IReadOnlyList<IEvent> events, IServiceScope serviceScope)
+        BlockingCollection<(IEvent Event, IEventHandler Handler)> BuildHandlingEventQueue(IReadOnlyList<IEvent> events, IServiceScope serviceScope)
         {
-            var queue = new ConcurrentQueue<(IEvent Event, IEventHandler Handler)>();
+            var queue = new BlockingCollection<(IEvent Event, IEventHandler Handler)>(new ConcurrentQueue<(IEvent Event, IEventHandler Handler)>());
 
             foreach (var e in events)
             {
                 foreach (var handler in GetHandlers(e, serviceScope))
-                    queue.Enqueue((e, handler));
+                    queue.TryAdd((e, handler));
             }
 
             return queue;
@@ -84,24 +86,7 @@ namespace Voguedi.Events
             return handlers;
         }
 
-        Task HandleEventAsync(ProcessingEvent processingEvent, (IEvent Event, IEventHandler Handler) current, ConcurrentQueue<(IEvent Event, IEventHandler Handler)> queue)
-            => HandleEventAsync(processingEvent, current, queue, 0, 0);
-
-        Task HandleEventAsync(
-            ProcessingEvent processingEvent,
-            (IEvent Event, IEventHandler Handler) current,
-            ConcurrentQueue<(IEvent Event, IEventHandler Handler)> queue,
-            int currentRetryInterval,
-            int currentRetryTimes)
-            => HandleEventAsync(processingEvent, current, queue, async (i, t) => await HandleEventAsync(processingEvent, current, queue, i, t), currentRetryInterval, currentRetryTimes);
-
-        async Task HandleEventAsync(
-            ProcessingEvent processingEvent,
-            (IEvent Event, IEventHandler Handler) current,
-            ConcurrentQueue<(IEvent Event, IEventHandler Handler)> queue,
-            Action<int, int> retryAction,
-            int currentRetryInterval,
-            int currentRetryTimes)
+        async Task HandleEventAsync(ProcessingEvent processingEvent, (IEvent Event, IEventHandler Handler) current, BlockingCollection<(IEvent Event, IEventHandler Handler)> queue)
         {
             var e = current.Event;
             var eventType = e.GetType();
@@ -115,50 +100,41 @@ namespace Voguedi.Events
 
                 if (result.Succeeded)
                 {
-                    if (queue.Count > 0)
-                    {
-                        if (queue.TryDequeue(out var next) && next.Event != null && next.Handler != null)
-                            await HandleEventAsync(processingEvent, next, queue);
-                        else
-                            await processingEvent.OnQueueCommittedAsync();
-                    }
+                    logger.LogInformation($"事件处理器执行成功！ [EventType = {eventType}, EventId = {e.Id}, EventHandlerType = {handlerType}]");
+
+                    if (!queue.IsCompleted && queue.TryTake(out var next) && next.Event != null && next.Handler != null)
+                        await HandleEventAsync(processingEvent, next, queue);
                     else
-                        await processingEvent.OnQueueCommittedAsync();
+                        await SaveVersionAsync(processingEvent);
                 }
                 else
-                    throw result.Exception;
+                {
+                    logger.LogError(result.Exception, $"事件处理器执行失败！ [EventType = {eventType}, EventId = {e.Id}, EventHandlerType = {handlerType}]");
+                    await processingEvent.OnQueueRejectedAsync();
+                }
             }
             catch (Exception ex)
             {
-                await HandleEventAsync(processingEvent, current, queue, retryAction, currentRetryInterval, currentRetryTimes, ex);
+                logger.LogError(ex, $"事件处理器执行失败！ [EventType = {eventType}, EventId = {e.Id}, EventHandlerType = {handlerType}]");
+                await processingEvent.OnQueueRejectedAsync();
             }
         }
 
-        Task HandleEventAsync(
-            ProcessingEvent processingEvent,
-            (IEvent Event, IEventHandler Handler) current,
-            ConcurrentQueue<(IEvent Event, IEventHandler Handler)> queue,
-            Action<int, int> retryAction,
-            int currentRetryInterval,
-            int currentRetryTimes,
-            Exception exception)
+        async Task SaveVersionAsync(ProcessingEvent processingEvent)
         {
-            if (currentRetryTimes < retryTimes)
+            var stream = processingEvent.Stream;
+            var result = await versionStore.SaveAsync(stream.AggregateRootTypeName, stream.AggregateRootId, stream.Version);
+
+            if (result.Succeeded)
             {
-                currentRetryTimes++;
-                retryAction?.Invoke(currentRetryInterval, currentRetryTimes);
-                return Task.CompletedTask;
+                logger.LogInformation($"事件版本存储成功！ {stream}");
+                await processingEvent.OnQueueCommittedAsync();
             }
-
-            currentRetryInterval += retryInterval;
-            currentRetryTimes++;
-            var e = current.Event;
-            logger.LogError(exception, $"事件处理器执行失败！ [EventType = {e.GetType()}, EventId = {e.Id}, EventHandlerType = {current.Handler.GetType()}, CurrentRetryTimes = {currentRetryTimes}]");
-            
-            if (retryAction != null)
-                return Task.Factory.StartDelayed(currentRetryInterval, () => retryAction(currentRetryInterval, currentRetryTimes));
-
-            return Task.CompletedTask;
+            else
+            {
+                logger.LogError(result.Exception, $"事件版本存储失败！ {stream}");
+                await processingEvent.OnQueueRejectedAsync();
+            }
         }
 
         #endregion

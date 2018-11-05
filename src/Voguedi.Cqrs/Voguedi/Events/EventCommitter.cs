@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 namespace Voguedi.Events
 {
@@ -20,7 +21,7 @@ namespace Voguedi.Events
 
         #region IEventCommitter
 
-        public void Commit(CommittingEvent committingEvent)
+        public Task CommitAsync(CommittingEvent committingEvent)
         {
             var aggregateRootId = committingEvent.ProcessingCommand.Command.GetAggregateRootId();
 
@@ -29,6 +30,7 @@ namespace Voguedi.Events
 
             var queue = queueMapping.GetOrAdd(aggregateRootId, key => queueFactory.Create(key));
             queue.Enqueue(committingEvent);
+            return Task.CompletedTask;
         }
 
         #endregion

@@ -7,7 +7,7 @@ namespace Voguedi.Events
     {
         #region Methods
 
-        Task<AsyncExecutedResult> PublisheAsync(EventStream stream);
+        Task<AsyncExecutedResult> PublishStreamAsync(EventStream stream);
 
         #endregion
     }

@@ -7,9 +7,9 @@ namespace Voguedi.Commands
     {
         #region Methods
 
-        Task CreateAggregateRoot<TAggregateRoot, TIdentity>(TAggregateRoot aggregateRoot) where TAggregateRoot : class, IAggregateRoot<TIdentity>;
+        Task CreateAggregateRootAsync<TAggregateRoot, TIdentity>(TAggregateRoot aggregateRoot) where TAggregateRoot : class, IAggregateRoot<TIdentity>;
 
-        Task<TAggregateRoot> GetAggregateRoot<TAggregateRoot, TIdentity>(TIdentity aggregateRootId) where TAggregateRoot : class, IAggregateRoot<TIdentity>;
+        Task<TAggregateRoot> GetAggregateRootAsync<TAggregateRoot, TIdentity>(TIdentity aggregateRootId) where TAggregateRoot : class, IAggregateRoot<TIdentity>;
 
         #endregion
     }

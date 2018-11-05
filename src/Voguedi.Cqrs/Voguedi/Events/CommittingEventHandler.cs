@@ -30,7 +30,7 @@ namespace Voguedi.Events
 
         async Task PublishStreamAsync(EventStream stream, ProcessingCommand processingCommand)
         {
-            var result = await publisher.PublisheAsync(stream);
+            var result = await publisher.PublishStreamAsync(stream);
 
             if (result.Succeeded)
             {
