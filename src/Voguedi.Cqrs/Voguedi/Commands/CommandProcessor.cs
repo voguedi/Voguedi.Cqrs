@@ -24,7 +24,7 @@ namespace Voguedi.Commands
         public Task ProcessAsync(ProcessingCommand processingCommand)
         {
             var command = processingCommand.Command;
-            var aggregateRootId = command.GetAggregateRootId();
+            var aggregateRootId = command.AggregateRootId;
 
             if (string.IsNullOrWhiteSpace(aggregateRootId))
                 throw new ArgumentException(nameof(processingCommand), $"命令处理的聚合根 Id 不能为空！ [CommandType = {command.GetType()}, CommandId = {command.Id}]");

@@ -97,8 +97,8 @@ namespace Voguedi.Commands
         async Task TryGetAndPublishEventStreamAsync(ProcessingCommand processingCommand)
         {
             var command = processingCommand.Command;
-            var aggregateRootId = command.GetAggregateRootId();
-            var result = await eventStore.GetStreamAsync(command.GetAggregateRootId(), command.Id);
+            var aggregateRootId = command.AggregateRootId;
+            var result = await eventStore.GetStreamAsync(aggregateRootId, command.Id);
 
             if (result.Succeeded)
             {
@@ -175,7 +175,7 @@ namespace Voguedi.Commands
         {
             var command = processingCommand.Command;
             var commandType = command.GetType();
-            var aggregateRootId = command.GetAggregateRootId();
+            var aggregateRootId = command.AggregateRootId;
 
             if (string.IsNullOrWhiteSpace(aggregateRootId))
             {

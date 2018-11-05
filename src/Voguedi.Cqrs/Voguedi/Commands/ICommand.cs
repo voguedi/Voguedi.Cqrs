@@ -4,9 +4,18 @@ namespace Voguedi.Commands
 {
     public interface ICommand : IMessage
     {
-        #region Methods
+        #region Properties
 
-        string GetAggregateRootId();
+        string AggregateRootId { get; }
+
+        #endregion
+    }
+
+    public interface ICommand<TIdentity> : ICommand
+    {
+        #region Properties
+
+        new TIdentity AggregateRootId { get; }
 
         #endregion
     }

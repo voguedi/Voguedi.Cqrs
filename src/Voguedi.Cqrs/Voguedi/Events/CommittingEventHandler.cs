@@ -56,11 +56,11 @@ namespace Voguedi.Events
             {
                 processingCommandQueue.ResetSequence(queueSequence);
                 committingEventQueue.Clear();
-                logger.LogInformation($"重置命令处理队列成功！ [AggregateRootId = {command.GetAggregateRootId()}, CommandType = {command.GetType()}, CommandId = {command.Id}]");
+                logger.LogInformation($"重置命令处理队列成功！ [AggregateRootId = {command.AggregateRootId}, CommandType = {command.GetType()}, CommandId = {command.Id}]");
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"重置命令处理队列序号失败！ [AggregateRootId = {command.GetAggregateRootId()}, CommandType = {command.GetType()}, CommandId = {command.Id}]");
+                logger.LogError(ex, $"重置命令处理队列序号失败！ [AggregateRootId = {command.AggregateRootId}, CommandType = {command.GetType()}, CommandId = {command.Id}]");
             }
             finally
             {
@@ -72,7 +72,7 @@ namespace Voguedi.Events
         {
             var processingCommand = committingEvent.ProcessingCommand;
             var command = processingCommand.Command;
-            var aggregateRootId = command.GetAggregateRootId();
+            var aggregateRootId = command.AggregateRootId;
             var result = await store.GetStreamAsync(aggregateRootId, command.Id);
 
             if (result.Succeeded)

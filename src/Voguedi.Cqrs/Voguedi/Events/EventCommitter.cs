@@ -23,7 +23,7 @@ namespace Voguedi.Events
 
         public Task CommitAsync(CommittingEvent committingEvent)
         {
-            var aggregateRootId = committingEvent.ProcessingCommand.Command.GetAggregateRootId();
+            var aggregateRootId = committingEvent.ProcessingCommand.Command.AggregateRootId;
 
             if (string.IsNullOrWhiteSpace(aggregateRootId))
                 throw new ArgumentException(nameof(committingEvent), $"提交事件的聚合根 Id 不能为空！");
