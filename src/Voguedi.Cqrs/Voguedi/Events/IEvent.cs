@@ -1,8 +1,8 @@
 ﻿using Voguedi.Messaging;
 
-namespace Voguedi.Domain.Events
+namespace Voguedi.Events
 {
-    public interface IDomainEvent : IMessage
+    public interface IEvent : IMessage
     {
         #region Properties
 

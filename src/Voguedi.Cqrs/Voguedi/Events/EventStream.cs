@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using Voguedi.IdentityGeneration;
 
-namespace Voguedi.Domain.Events
+namespace Voguedi.Events
 {
-    public sealed class DomainEventStream
+    public sealed class EventStream
     {
         #region Public Properties
 
@@ -21,18 +21,18 @@ namespace Voguedi.Domain.Events
 
         public long Version { get; }
 
-        public IReadOnlyList<IDomainEvent> Events { get; }
+        public IReadOnlyList<IEvent> Events { get; }
 
         #endregion
 
         #region Ctors
         
-        public DomainEventStream(string id, DateTime timestamp, string commandId, string aggregateRootTypeName, string aggregateRootId, long version, IReadOnlyList<IDomainEvent> events)
+        public EventStream(string id, DateTime timestamp, string commandId, string aggregateRootTypeName, string aggregateRootId, long version, IReadOnlyList<IEvent> events)
         {
             foreach (var e in events)
             {
                 if (e.Version != version)
-                    throw new ArgumentNullException(nameof(events), $"领域事件流版本与领域事件版本不同！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, Version = {version}, EventVersion = {e.Version}]");
+                    throw new ArgumentNullException(nameof(events), $"事件版本与领域事件版本不同！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, Version = {version}, EventVersion = {e.Version}]");
             }
 
             Id = id;
@@ -44,7 +44,7 @@ namespace Voguedi.Domain.Events
             Events = events;
         }
 
-        public DomainEventStream(string commandId, string aggregateRootTypeName, string aggregateRootId, long version, IReadOnlyList<IDomainEvent> events)
+        public EventStream(string commandId, string aggregateRootTypeName, string aggregateRootId, long version, IReadOnlyList<IEvent> events)
             : this(StringIdentityGenerator.Instance.Generate(), DateTime.UtcNow, commandId, aggregateRootTypeName, aggregateRootId, version, events)
         { }
 

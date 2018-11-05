@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using Voguedi.Domain.Entities;
-using Voguedi.Domain.Events;
+﻿using Voguedi.Domain.Entities;
 
 namespace Voguedi.Domain.AggregateRoots
 {

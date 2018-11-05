@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using Voguedi.Domain.Events;
+using Voguedi.Events;
 
 namespace Voguedi.Domain.AggregateRoots
 {
@@ -7,11 +7,11 @@ namespace Voguedi.Domain.AggregateRoots
     {
         #region Methods
 
-        IReadOnlyList<IDomainEvent> GetUncommittedEvents();
+        IReadOnlyList<IEvent> GetUncommittedEvents();
 
         void CommitEvents(long committedVersion);
 
-        void ReplayEvents(IReadOnlyList<DomainEventStream> eventStreams);
+        void ReplayEvents(IReadOnlyList<EventStream> eventStreams);
 
         string GetId();
 

@@ -1,23 +1,23 @@
 ﻿using System.Threading.Tasks;
 using Voguedi.Messaging;
 
-namespace Voguedi.Domain.Events
+namespace Voguedi.Events
 {
-    public sealed class ProcessingDomainEvent
+    public sealed class ProcessingEvent
     {
         #region Public Properties
 
-        public DomainEventStream Stream { get; }
+        public EventStream Stream { get; }
 
         public IMessageConsumer Consumer { get; }
 
-        public IProcessingDomainEventQueue Queue { get; set; }
+        public IProcessingEventQueue Queue { get; set; }
 
         #endregion
 
         #region Ctors
 
-        public ProcessingDomainEvent(DomainEventStream stream, IMessageConsumer consumer)
+        public ProcessingEvent(EventStream stream, IMessageConsumer consumer)
         {
             Stream = stream;
             Consumer = consumer;

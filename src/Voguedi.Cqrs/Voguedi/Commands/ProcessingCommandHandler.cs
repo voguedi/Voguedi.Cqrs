@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Voguedi.Domain.Events;
+using Voguedi.Events;
 
 namespace Voguedi.Commands
 {
@@ -14,9 +14,9 @@ namespace Voguedi.Commands
         #region Private Fields
 
         readonly IProcessingCommandHandlerContextFactory contextFactory;
-        readonly IDomainEventCommitter eventCommitter;
-        readonly IDomainEventStore eventStore;
-        readonly IDomainEventPublisher eventPublisher;
+        readonly IEventCommitter eventCommitter;
+        readonly IEventStore eventStore;
+        readonly IEventPublisher eventPublisher;
         readonly IServiceProvider serviceProvider;
         readonly ILogger logger;
         readonly ConcurrentDictionary<Type, ICommandHandler> handlerMapping = new ConcurrentDictionary<Type, ICommandHandler>();
@@ -27,9 +27,9 @@ namespace Voguedi.Commands
 
         public ProcessingCommandHandler(
             IProcessingCommandHandlerContextFactory contextFactory,
-            IDomainEventCommitter eventCommitter,
-            IDomainEventStore eventStore,
-            IDomainEventPublisher eventPublisher,
+            IEventCommitter eventCommitter,
+            IEventStore eventStore,
+            IEventPublisher eventPublisher,
             IServiceProvider serviceProvider,
             ILogger<ProcessingCommandHandler> logger)
         {
@@ -55,14 +55,14 @@ namespace Voguedi.Commands
 
             try
             {
-                var handlerMethod = handlerType.GetTypeInfo().GetMethod("HandleAsync", new[] { context.GetType(), command.GetType() });
+                var handlerMethod = handlerType.GetTypeInfo().GetMethod("HandleAsync", new[] { context.GetType(), commandType });
                 await (Task)handlerMethod.Invoke(handler, new object[] { context, command });
-                logger.LogInformation($"命令处理器执行成功！ [CommandType = {command.GetType()}, CommandId = {command.Id}, CommandHandlerType = {handlerType}]");
+                logger.LogInformation($"命令处理器执行成功！ [CommandType = {commandType}, CommandId = {command.Id}, CommandHandlerType = {handlerType}]");
                 handled = true;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"命令处理器执行失败！ [CommandType = {command.GetType()}, CommandId = {command.Id}, CommandHandlerType = {handlerType}]");
+                logger.LogError(ex, $"命令处理器执行失败！ [CommandType = {commandType}, CommandId = {command.Id}, CommandHandlerType = {handlerType}]");
                 await TryGetAndPublishEventStreamAsync(processingCommand);
             }
 
@@ -110,35 +110,35 @@ namespace Voguedi.Commands
 
                 if (eventStream != null)
                 {
-                    logger.LogInformation($"获取命令产生的领域事件成功！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRootId = {aggregateRootId}, DomainEventStream = {eventStream}]");
+                    logger.LogInformation($"获取命令产生的事件成功！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRootId = {aggregateRootId}, EventStream = {eventStream}]");
                     await PublishEventStreamAsync(processingCommand, eventStream);
                 }
                 else
                 {
-                    logger.LogError($"未获取到任何命令产生的领域事件！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRootId = {aggregateRootId}]");
+                    logger.LogError($"未获取到任何命令产生的事件！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRootId = {aggregateRootId}]");
                     await processingCommand.OnQueueRejectedAsync();
                 }
             }
             else
             {
-                logger.LogError(result.Exception, $"获取命令产生的领域事件失败！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRootId = {aggregateRootId}]");
+                logger.LogError(result.Exception, $"获取命令产生的事件失败！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRootId = {aggregateRootId}]");
                 await processingCommand.OnQueueRejectedAsync();
             }
         }
 
-        async Task PublishEventStreamAsync(ProcessingCommand processingCommand, DomainEventStream eventStream)
+        async Task PublishEventStreamAsync(ProcessingCommand processingCommand, EventStream eventStream)
         {
             var command = processingCommand.Command;
             var result = await eventPublisher.PublisheAsync(eventStream);
 
             if (result.Succeeded)
             {
-                logger.LogInformation($"命令产生的领域事件发布成功！ [CommandType = {command.GetType()}, CommandId = {command.Id}, DomainEventStream = {eventStream}]");
+                logger.LogInformation($"命令产生的事件发布成功！ [CommandType = {command.GetType()}, CommandId = {command.Id}, EventStream = {eventStream}]");
                 await processingCommand.OnQueueCommittedAsync();
             }
             else
             {
-                logger.LogInformation(result.Exception, $"命令产生的领域事件发布失败！ [CommandType = {command.GetType()}, CommandId = {command.Id}, DomainEventStream = {eventStream}]");
+                logger.LogInformation(result.Exception, $"命令产生的事件发布失败！ [CommandType = {command.GetType()}, CommandId = {command.Id}, EventStream = {eventStream}]");
                 await processingCommand.OnQueueRejectedAsync();
             }
         }
@@ -151,13 +151,13 @@ namespace Voguedi.Commands
             if (aggregateRoots?.Count() == 1)
             {
                 var aggregateRoot = aggregateRoots.First();
-                var eventStream = new DomainEventStream(
+                var eventStream = new EventStream(
                     command.Id,
                     aggregateRoot.GetTypeName(),
                     aggregateRoot.GetId(),
                     aggregateRoot.GetVersion() + 1,
                     aggregateRoot.GetUncommittedEvents());
-                var committingEvent = new CommittingDomainEvent(eventStream, processingCommand, aggregateRoot);
+                var committingEvent = new CommittingEvent(eventStream, processingCommand, aggregateRoot);
                 eventCommitter.Commit(committingEvent);
             }
             else if (aggregateRoots?.Count() > 1)

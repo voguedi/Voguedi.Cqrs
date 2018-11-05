@@ -4,16 +4,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace Voguedi.Domain.Events
+namespace Voguedi.Events
 {
-    class CommittingDomainEventQueue : ICommittingDomainEventQueue
+    class CommittingEventQueue : ICommittingEventQueue
     {
         #region Private Fields
 
         readonly string aggregateRootId;
-        readonly ICommittingDomainEventHandler handler;
+        readonly ICommittingEventHandler handler;
         readonly ILogger logger;
-        readonly BlockingCollection<CommittingDomainEvent> queue = new BlockingCollection<CommittingDomainEvent>(new ConcurrentQueue<CommittingDomainEvent>());
+        readonly BlockingCollection<CommittingEvent> queue = new BlockingCollection<CommittingEvent>(new ConcurrentQueue<CommittingEvent>());
         readonly object syncLock = new object();
         const int starting = 1;
         const int stop = 0;
@@ -23,7 +23,7 @@ namespace Voguedi.Domain.Events
 
         #region Ctors
 
-        public CommittingDomainEventQueue(string aggregateRootId, ICommittingDomainEventHandler handler, ILogger<CommittingDomainEventQueue> logger)
+        public CommittingEventQueue(string aggregateRootId, ICommittingEventHandler handler, ILogger<CommittingEventQueue> logger)
         {
             this.aggregateRootId = aggregateRootId;
             this.handler = handler;
@@ -42,7 +42,7 @@ namespace Voguedi.Domain.Events
 
         async Task StartAsync()
         {
-            var committingEvent = default(CommittingDomainEvent);
+            var committingEvent = default(CommittingEvent);
 
             try
             {
@@ -54,7 +54,7 @@ namespace Voguedi.Domain.Events
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"领域事件提交队列启动失败！ [AggregateRootId = {aggregateRootId}]");
+                logger.LogError(ex, $"事件提交队列启动失败！ [AggregateRootId = {aggregateRootId}]");
                 Thread.Sleep(1);
             }
             finally
@@ -69,11 +69,13 @@ namespace Voguedi.Domain.Events
             }
         }
 
+        void Stop() => Interlocked.Exchange(ref isStarting, stop);
+
         #endregion
 
-        #region ICommittingDomainEventQueue
+        #region ICommittingEventQueue
 
-        public void Enqueue(CommittingDomainEvent committingEvent)
+        public void Enqueue(CommittingEvent committingEvent)
         {
             lock (syncLock)
             {
@@ -84,9 +86,11 @@ namespace Voguedi.Domain.Events
             TryStart();
         }
 
-        public void Clear() => queue.Clear();
-
-        public void Stop() => Interlocked.Exchange(ref isStarting, stop);
+        public void Clear()
+        {
+            queue.Clear();
+            Stop();
+        }
 
         #endregion
     }
