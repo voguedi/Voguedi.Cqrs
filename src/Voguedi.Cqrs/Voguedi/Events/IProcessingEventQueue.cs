@@ -1,8 +1,9 @@
 ﻿using System.Threading.Tasks;
+using Voguedi.ActiveCheckers;
 
 namespace Voguedi.Events
 {
-    public interface IProcessingEventQueue
+    public interface IProcessingEventQueue : IMemoryQueueActiveContext
     {
         #region Methods
 

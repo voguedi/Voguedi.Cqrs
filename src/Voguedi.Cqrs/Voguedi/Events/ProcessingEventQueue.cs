@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Nito.AsyncEx;
 
 namespace Voguedi.Events
 {
@@ -16,19 +17,22 @@ namespace Voguedi.Events
         readonly BlockingCollection<ProcessingEvent> queue = new BlockingCollection<ProcessingEvent>(new ConcurrentQueue<ProcessingEvent>());
         readonly ConcurrentDictionary<long, ProcessingEvent> waitingQueue = new ConcurrentDictionary<long, ProcessingEvent>();
         readonly object syncLock = new object();
+        readonly AsyncLock asyncLock = new AsyncLock();
         const int starting = 1;
         const int stop = 0;
         int isStarting;
+        DateTime lastActiveOn;
 
         #endregion
 
         #region Ctors
-        
+
         public ProcessingEventQueue(string aggregateRootId, IProcessingEventHandler handler, ILogger<ProcessingEventQueue> logger)
         {
             this.aggregateRootId = aggregateRootId;
             this.handler = handler;
             this.logger = logger;
+            lastActiveOn = DateTime.UtcNow;
         }
 
         #endregion
@@ -43,6 +47,7 @@ namespace Voguedi.Events
 
         async Task StartAsync()
         {
+            lastActiveOn = DateTime.UtcNow;
             var processingEvent = default(ProcessingEvent);
 
             try
@@ -90,6 +95,7 @@ namespace Voguedi.Events
                 queue.TryAdd(processingEvent);
             }
 
+            lastActiveOn = DateTime.UtcNow;
             TryStart();
         }
 
@@ -98,30 +104,41 @@ namespace Voguedi.Events
             lock (syncLock)
                 waitingQueue.TryAdd(processingEvent.Stream.Version, processingEvent);
 
+            lastActiveOn = DateTime.UtcNow;
             Restart();
         }
 
         public async Task CommitAsync(ProcessingEvent processingEvent)
         {
-            var currentVersion = processingEvent.Stream.Version;
-            await processingEvent.OnConsumerCommittedAsync();
+            using (await asyncLock.LockAsync())
+            {
+                lastActiveOn = DateTime.UtcNow;
+                var currentVersion = processingEvent.Stream.Version;
+                await processingEvent.OnConsumerCommittedAsync();
 
-            if (waitingQueue.TryGetValue(currentVersion + 1, out var next))
-                await handler.HandleAsync(next);
-            else
-                Restart();
+                if (waitingQueue.TryGetValue(currentVersion + 1, out var next))
+                    await handler.HandleAsync(next);
+                else
+                    Restart();
+            }
         }
 
         public async Task RejectAsync(ProcessingEvent processingEvent)
         {
-            var currentVersion = processingEvent.Stream.Version;
-            await processingEvent.OnConsumerRejectedAsync();
+            using (await asyncLock.LockAsync())
+            {
+                lastActiveOn = DateTime.UtcNow;
+                var currentVersion = processingEvent.Stream.Version;
+                await processingEvent.OnConsumerRejectedAsync();
 
-            if (waitingQueue.TryGetValue(currentVersion + 1, out var next))
-                await next.OnConsumerRejectedAsync();
-            else
-                Restart();
+                if (waitingQueue.TryGetValue(currentVersion + 1, out var next))
+                    await next.OnConsumerRejectedAsync();
+                else
+                    Restart();
+            }
         }
+
+        public bool IsInactive(int expiration) => (DateTime.UtcNow - lastActiveOn).TotalSeconds >= expiration && isStarting == starting;
 
         #endregion
     }

@@ -1,6 +1,8 @@
-﻿namespace Voguedi.Events
+﻿using Voguedi.ActiveCheckers;
+
+namespace Voguedi.Events
 {
-    public interface ICommittingEventQueue
+    public interface ICommittingEventQueue : IMemoryQueueActiveContext
     {
         #region Methods
 

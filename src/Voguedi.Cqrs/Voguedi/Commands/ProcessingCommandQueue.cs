@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -30,6 +29,7 @@ namespace Voguedi.Commands
         long previousSequence = -1;
         long currentSequence;
         long nextSequence;
+        DateTime lastActiveOn;
 
         #endregion
 
@@ -40,6 +40,7 @@ namespace Voguedi.Commands
             this.aggregateRootId = aggregateRootId;
             this.handler = handler;
             this.logger = logger;
+            lastActiveOn = DateTime.UtcNow;
         }
 
         #endregion
@@ -54,6 +55,8 @@ namespace Voguedi.Commands
 
         async Task StartAsync()
         {
+            lastActiveOn = DateTime.UtcNow;
+
             while (isPausing)
             {
                 logger.LogInformation($"命令处理队列当前状态为暂停，等待并重新启动！ [AggregateRootId = {aggregateRootId}]");
@@ -146,11 +149,13 @@ namespace Voguedi.Commands
                     nextSequence++;
             }
 
+            lastActiveOn = DateTime.UtcNow;
             TryStart();
         }
 
         public void Pause()
         {
+            lastActiveOn = DateTime.UtcNow;
             pausingHandle.Reset();
 
             while (isProcessing)
@@ -164,12 +169,14 @@ namespace Voguedi.Commands
 
         public void ResetSequence(long sequence)
         {
+            lastActiveOn = DateTime.UtcNow;
             currentSequence = sequence;
             waitingQueue.Clear();
         }
 
         public void Restart()
         {
+            lastActiveOn = DateTime.UtcNow;
             isPausing = false;
             pausingHandle.Set();
             TryStart();
@@ -179,6 +186,7 @@ namespace Voguedi.Commands
         {
             using (await asyncLock.LockAsync())
             {
+                lastActiveOn = DateTime.UtcNow;
                 var command = processingCommand.Command;
                 var committingSequence = processingCommand.QueueSequence;
                 var exceptedSequence = previousSequence + 1;
@@ -211,6 +219,7 @@ namespace Voguedi.Commands
         {
             using (await asyncLock.LockAsync())
             {
+                lastActiveOn = DateTime.UtcNow;
                 var command = processingCommand.Command;
                 var rejectingSequence = processingCommand.QueueSequence;
                 var exceptedSequence = previousSequence + 1;
@@ -238,6 +247,8 @@ namespace Voguedi.Commands
                 }
             }
         }
+
+        public bool IsInactive(int expiration) => (DateTime.UtcNow - lastActiveOn).TotalSeconds >= expiration && isStarting == starting;
 
         #endregion
     }

@@ -1,8 +1,9 @@
 ﻿using System.Threading.Tasks;
+using Voguedi.ActiveCheckers;
 
 namespace Voguedi.Commands
 {
-    public interface IProcessingCommandQueue
+    public interface IProcessingCommandQueue : IMemoryQueueActiveContext
     {
         #region Methods
 

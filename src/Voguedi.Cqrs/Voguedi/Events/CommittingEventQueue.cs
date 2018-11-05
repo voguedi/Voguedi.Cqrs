@@ -18,6 +18,7 @@ namespace Voguedi.Events
         const int starting = 1;
         const int stop = 0;
         int isStarting;
+        DateTime lastActiveOn;
 
         #endregion
 
@@ -28,6 +29,7 @@ namespace Voguedi.Events
             this.aggregateRootId = aggregateRootId;
             this.handler = handler;
             this.logger = logger;
+            lastActiveOn = DateTime.UtcNow;
         }
 
         #endregion
@@ -42,6 +44,7 @@ namespace Voguedi.Events
 
         async Task StartAsync()
         {
+            lastActiveOn = DateTime.UtcNow;
             var committingEvent = default(CommittingEvent);
 
             try
@@ -83,6 +86,7 @@ namespace Voguedi.Events
                 queue.TryAdd(committingEvent);
             }
 
+            lastActiveOn = DateTime.UtcNow;
             TryStart();
         }
 
@@ -91,6 +95,8 @@ namespace Voguedi.Events
             queue.Clear();
             Stop();
         }
+
+        public bool IsInactive(int expiration) => (DateTime.UtcNow - lastActiveOn).TotalSeconds >= expiration && isStarting == starting;
 
         #endregion
     }
