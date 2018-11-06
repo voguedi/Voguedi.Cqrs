@@ -44,7 +44,7 @@ namespace Voguedi.Events
             }
         }
 
-        void ResetProcessingCommandQueueSequence(CommittingEvent committingEvent, long queueSequence)
+        void ResetProcessingCommandQueueSequenceAsync(CommittingEvent committingEvent, long queueSequence)
         {
             var committingEventQueue = committingEvent.Queue;
             var processingCommand = committingEvent.ProcessingCommand;
@@ -114,27 +114,27 @@ namespace Voguedi.Events
                     if (firstStream.CommandId == command.Id)
                     {
                         logger.LogInformation($"获取已存储的事件成功！ [AggregateRootId = {aggregateRootId}, Version = 1, EventStream = {firstStream}]");
-                        ResetProcessingCommandQueueSequence(committingEvent, processingCommand.QueueSequence);
+                        ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence);
                         await PublishStreamAsync(firstStream, processingCommand);
                     }
                     else
                     {
                         logger.LogError($"存在不同命令重复处理相同聚合根！ [CurrentEventStream = {stream}, ExistsEventStream = {firstStream}]");
-                        ResetProcessingCommandQueueSequence(committingEvent, processingCommand.QueueSequence + 1);
+                        ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence + 1);
                         await processingCommand.OnQueueRejectedAsync();
                     }
                 }
                 else
                 {
                     logger.LogError($"未获取任何已存储的事件！ [AggregateRootId = {aggregateRootId}, Version = 1]");
-                    ResetProcessingCommandQueueSequence(committingEvent, processingCommand.QueueSequence + 1);
+                    ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence + 1);
                     await processingCommand.OnQueueRejectedAsync();
                 }
             }
             else
             {
                 logger.LogError(result.Exception, $"获取已存储的事件失败！ [AggregateRootId = {aggregateRootId}, Version = 1]");
-                ResetProcessingCommandQueueSequence(committingEvent, processingCommand.QueueSequence + 1);
+                ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence + 1);
                 await processingCommand.OnQueueRejectedAsync();
             }
         }
@@ -161,7 +161,7 @@ namespace Voguedi.Events
                 else if (savedResult == EventStreamSavedResult.DuplicatedCommand)
                 {
                     logger.LogError($"事件存储失败，存在相同的命令！ {stream}");
-                    ResetProcessingCommandQueueSequence(committingEvent, processingCommand.QueueSequence + 1);
+                    ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence + 1);
                     await TryGetAndPublishStreamAsync(committingEvent);
                 }
                 else if (savedResult == EventStreamSavedResult.DuplicatedEvent)
@@ -174,7 +174,7 @@ namespace Voguedi.Events
                     else
                     {
                         logger.LogError($"事件存储失败，存在相同的版本！ {stream}");
-                        ResetProcessingCommandQueueSequence(committingEvent, processingCommand.QueueSequence);
+                        ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence);
                         await processingCommand.OnQueueRejectedAsync();
                     }
                 }

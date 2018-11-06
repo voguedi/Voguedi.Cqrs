@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using Voguedi.ValueObjects;
+using Voguedi.Domain.ValueObjects;
 
 namespace Voguedi.Domain.Entities
 {

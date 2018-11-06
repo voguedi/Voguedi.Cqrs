@@ -3,8 +3,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Voguedi.Schedulers;
 using Voguedi.DisposableObjects;
+using Voguedi.Schedulers;
 
 namespace Voguedi.Events
 {

@@ -1,10 +1,9 @@
 ﻿using System;
-using System.Linq;
-using System.Reflection;
+using System.Runtime.Serialization;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Voguedi.AsyncExecution;
 using Voguedi.Domain.AggregateRoots;
-using Voguedi.Domain.Snapshots;
 using Voguedi.Events;
 
 namespace Voguedi.Domain.Repositories
@@ -14,74 +13,84 @@ namespace Voguedi.Domain.Repositories
         #region Private Fields
 
         readonly IEventStore eventStore;
-        readonly IServiceProvider serviceProvider;
+        readonly ILogger logger;
+
+        #endregion
+
+        #region Ctors
+        
+        public EventSourcedRepository(IEventStore eventStore, ILogger<EventSourcedRepository> logger)
+        {
+            this.eventStore = eventStore;
+            this.logger = logger;
+        }
 
         #endregion
 
         #region Private Methods
 
-        async Task<TAggregateRoot> TryRestoreFromSnapshotAsync<TAggregateRoot, TIdentity>(TIdentity id)
-            where TAggregateRoot : class, IAggregateRoot<TIdentity>
+        IEventSourcedAggregateRoot Build(Type aggregateRootType)
         {
-            var aggregateRoot = await serviceProvider.GetService<ISnapshot>()?.RestoreAsync<TAggregateRoot, TIdentity>(id);
+            var obj = FormatterServices.GetUninitializedObject(aggregateRootType);
 
-            if (aggregateRoot != null)
-            {
-                var result = await eventStore.GetStreamsAsync(typeof(TAggregateRoot).FullName, id.ToString(), aggregateRoot.GetVersion() + 1);
-
-                if (result.Succeeded)
-                {
-                    aggregateRoot.ReplayEvents(result.Data);
-                    return aggregateRoot;
-                }
-
-                throw result.Exception;
-            }
+            if (obj is IEventSourcedAggregateRoot aggregateRoot)
+                return aggregateRoot;
 
             return null;
-        }
-
-        TAggregateRoot Build<TAggregateRoot, TIdentity>(TIdentity id)
-           where TAggregateRoot : class, IAggregateRoot<TIdentity>
-        {
-            var ctors = from ctor in typeof(TAggregateRoot).GetTypeInfo().GetConstructors()
-                        let parameters = ctor.GetParameters()
-                        where parameters.Length == 1 && parameters[0].ParameterType == typeof(TIdentity)
-                        select ctor;
-            var defaultCtor = ctors.FirstOrDefault();
-
-            if (defaultCtor != null)
-                return (TAggregateRoot)defaultCtor.Invoke(new object[] { id });
-
-            throw new Exception($"聚合根未提供包含一个参数的构造函数！");
         }
 
         #endregion
 
         #region IRepository
 
-        async Task<TAggregateRoot> IRepository.Get<TAggregateRoot, TIdentity>(TIdentity id)
+        public async Task<AsyncExecutedResult<IEventSourcedAggregateRoot>> GetAsync(Type aggregateRootType, string aggregateRootId)
+        {
+            if (aggregateRootType == null)
+                throw new ArgumentNullException(nameof(aggregateRootType));
+
+            if (string.IsNullOrWhiteSpace(aggregateRootId))
+                throw new ArgumentNullException(nameof(aggregateRootId));
+
+            var aggregateRoot = Build(aggregateRootType);
+
+            if (aggregateRoot != null)
+            {
+                var result = await eventStore.GetStreamsAsync(aggregateRoot.GetTypeName(), aggregateRoot.GetId());
+
+                if (result.Succeeded)
+                {
+                    var eventStream = result.Data;
+                    aggregateRoot.ReplayEvents(eventStream);
+                    logger.LogInformation($"事件溯源重建聚合根成功！ [AggregateRootType = {aggregateRoot.GetType()}, AggregateRootId = {aggregateRoot.GetId()}, Version = {aggregateRoot.GetVersion()}, EventStream = {eventStream}]");
+                    return AsyncExecutedResult<IEventSourcedAggregateRoot>.Success(aggregateRoot); ;
+                }
+
+                logger.LogError(result.Exception, $"事件溯源重建聚合根失败！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
+                return AsyncExecutedResult<IEventSourcedAggregateRoot>.Failed(result.Exception);
+            }
+
+            logger.LogError($"事件溯源重建聚合根失败！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
+            return AsyncExecutedResult<IEventSourcedAggregateRoot>.Success(null);
+        }
+
+        async Task<AsyncExecutedResult<TAggregateRoot>> IRepository.GetAsync<TAggregateRoot, TIdentity>(TIdentity id)
         {
             if (Equals(id, default(TIdentity)))
                 throw new ArgumentNullException(nameof(id));
 
-            var aggregateRoot = await TryRestoreFromSnapshotAsync<TAggregateRoot, TIdentity>(id);
+            var result = await GetAsync(typeof(TAggregateRoot), id.ToString());
 
-            if (aggregateRoot != null)
+            if (result.Succeeded)
             {
-                aggregateRoot = Build<TAggregateRoot, TIdentity>(id);
-                var result = await eventStore.GetStreamsAsync(typeof(TAggregateRoot).FullName, id.ToString());
+                var eventSourced = result.Data;
 
-                if (result.Succeeded)
-                {
-                    aggregateRoot.ReplayEvents(result.Data);
-                    return aggregateRoot;
-                }
+                if (eventSourced is TAggregateRoot aggregateRoot)
+                    return AsyncExecutedResult<TAggregateRoot>.Success(aggregateRoot);
 
-                throw result.Exception;
+                return AsyncExecutedResult<TAggregateRoot>.Success(null);
             }
 
-            return null;
+            return AsyncExecutedResult<TAggregateRoot>.Failed(result.Exception);
         }
 
         #endregion

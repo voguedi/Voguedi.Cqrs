@@ -3,9 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using Voguedi.Domain.AggregateRoots;
-using Voguedi.Domain.Caching;
 using Voguedi.Domain.Repositories;
 
 namespace Voguedi.Commands
@@ -13,19 +11,29 @@ namespace Voguedi.Commands
     class ProcessingCommandHandlerContext : IProcessingCommandHandlerContext
     {
         #region Private Fields
-
+        
         readonly IRepository repository;
-        readonly IServiceProvider serviceProvider;
         readonly ConcurrentDictionary<string, IEventSourcedAggregateRoot> aggregateRootMapping = new ConcurrentDictionary<string, IEventSourcedAggregateRoot>();
 
         #endregion
 
         #region Ctors
 
-        public ProcessingCommandHandlerContext(IRepository repository, IServiceProvider serviceProvider)
+        public ProcessingCommandHandlerContext(IRepository repository) => this.repository = repository;
+
+        #endregion
+
+        #region Private Methods
+
+        async Task<TAggregateRoot> GetAggregateRootFromEventSourcedAsync<TAggregateRoot, TIdentity>(TIdentity aggregateRootId)
+            where TAggregateRoot : class, IAggregateRoot<TIdentity>
         {
-            this.repository = repository;
-            this.serviceProvider = serviceProvider;
+            var result = await repository.GetAsync<TAggregateRoot, TIdentity>(aggregateRootId);
+
+            if (result.Succeeded)
+                return result.Data;
+
+            throw result.Exception;
         }
 
         #endregion
@@ -58,12 +66,7 @@ namespace Voguedi.Commands
             if (aggregateRootMapping.TryGetValue(key, out var value) && value is TAggregateRoot aggregateRoot)
                 return aggregateRoot;
 
-            aggregateRoot = await serviceProvider.GetService<ICache>()?.GetAsync<TAggregateRoot, TIdentity>(aggregateRootId);
-
-            if (aggregateRoot == null)
-                aggregateRoot = await repository.Get<TAggregateRoot, TIdentity>(aggregateRootId);
-
-            aggregateRoot = await repository.Get<TAggregateRoot, TIdentity>(aggregateRootId);
+            aggregateRoot = await GetAggregateRootFromEventSourcedAsync<TAggregateRoot, TIdentity>(aggregateRootId);
 
             if (aggregateRoot != null)
             {
