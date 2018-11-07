@@ -43,6 +43,12 @@ namespace Voguedi.Domain.Caching.MemoryCache
 
         public async Task<AsyncExecutedResult<IEventSourcedAggregateRoot>> GetAsync(Type aggregateRootType, string aggregateRootId)
         {
+            if (aggregateRootType == null)
+                throw new ArgumentNullException(nameof(aggregateRootType));
+
+            if (string.IsNullOrWhiteSpace(aggregateRootId))
+                throw new ArgumentNullException(nameof(aggregateRootId));
+
             try
             {
                 var content = await cache.GetAsync(BuildKey(aggregateRootId));
@@ -70,6 +76,9 @@ namespace Voguedi.Domain.Caching.MemoryCache
 
         public async Task<AsyncExecutedResult> SetAsync(IEventSourcedAggregateRoot aggregateRoot)
         {
+            if (aggregateRoot == null)
+                throw new ArgumentNullException(nameof(aggregateRoot));
+
             var aggregateRootType = aggregateRoot.GetAggregateRootType();
             var aggregateRootId = aggregateRoot.GetAggregateRootId();
 

@@ -3,6 +3,8 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace />
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>voguedi</Authors>
   </PropertyGroup>
 
   <ItemGroup>

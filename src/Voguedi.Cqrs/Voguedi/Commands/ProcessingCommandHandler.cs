@@ -99,7 +99,7 @@ namespace Voguedi.Commands
             var command = processingCommand.Command;
             var commandId = command.Id;
             var aggregateRootId = command.AggregateRootId;
-            var result = await eventStore.GetStreamAsync(aggregateRootId, commandId);
+            var result = await eventStore.GetAsync(aggregateRootId, commandId);
 
             if (result.Succeeded)
             {

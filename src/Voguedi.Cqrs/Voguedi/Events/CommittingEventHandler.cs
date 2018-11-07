@@ -110,7 +110,7 @@ namespace Voguedi.Events
             var command = processingCommand.Command;
             var commandId = command.Id;
             var aggregateRootId = committingEvent.AggregateRoot.GetAggregateRootId();
-            var result = await store.GetStreamAsync(aggregateRootId, commandId);
+            var result = await store.GetAsync(aggregateRootId, commandId);
 
             if (result.Succeeded)
             {
@@ -139,7 +139,7 @@ namespace Voguedi.Events
             var stream = committingEvent.Stream;
             var aggregateRootId = stream.AggregateRootId;
             var processingCommand = committingEvent.ProcessingCommand;
-            var result = await store.GetStreamAsync(aggregateRootId, 1);
+            var result = await store.GetAsync(aggregateRootId, 1);
 
             if (result.Succeeded)
             {
@@ -185,7 +185,7 @@ namespace Voguedi.Events
         {
             var stream = committingEvent.Stream;
             var processingCommand = committingEvent.ProcessingCommand;
-            var result = await store.SaveStreamAsync(stream);
+            var result = await store.SaveAsync(stream);
 
             if (result.Succeeded)
             {

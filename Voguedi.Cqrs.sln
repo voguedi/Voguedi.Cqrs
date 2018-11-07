@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Voguedi.Cqrs", "src\Voguedi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Voguedi.Cqrs.MemoryCache", "src\Voguedi.Cqrs.MemoryCache\Voguedi.Cqrs.MemoryCache.csproj", "{EE57254B-CBCD-4000-9F50-18A234B548A3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Voguedi.Cqrs.SqlServer", "src\Voguedi.Cqrs.SqlServer\Voguedi.Cqrs.SqlServer.csproj", "{1ED14ACB-0792-4F4A-A829-BA5EB742FCFF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,6 +25,10 @@ Global
 		{EE57254B-CBCD-4000-9F50-18A234B548A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EE57254B-CBCD-4000-9F50-18A234B548A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EE57254B-CBCD-4000-9F50-18A234B548A3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1ED14ACB-0792-4F4A-A829-BA5EB742FCFF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1ED14ACB-0792-4F4A-A829-BA5EB742FCFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1ED14ACB-0792-4F4A-A829-BA5EB742FCFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1ED14ACB-0792-4F4A-A829-BA5EB742FCFF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -30,6 +36,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{2D6294B5-40B5-4987-9383-21BE4D9FB491} = {62FEF381-BCA5-4C29-91BA-BE6186421B12}
 		{EE57254B-CBCD-4000-9F50-18A234B548A3} = {62FEF381-BCA5-4C29-91BA-BE6186421B12}
+		{1ED14ACB-0792-4F4A-A829-BA5EB742FCFF} = {62FEF381-BCA5-4C29-91BA-BE6186421B12}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {010C73BD-0544-4AD6-8DD4-712588809960}

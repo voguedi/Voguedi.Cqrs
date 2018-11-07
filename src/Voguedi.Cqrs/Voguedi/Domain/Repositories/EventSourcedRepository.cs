@@ -55,7 +55,7 @@ namespace Voguedi.Domain.Repositories
 
             if (aggregateRoot != null)
             {
-                var result = await eventStore.GetStreamsAsync(aggregateRootType.FullName, aggregateRootId);
+                var result = await eventStore.GetAllAsync(aggregateRootType.FullName, aggregateRootId);
 
                 if (result.Succeeded)
                 {

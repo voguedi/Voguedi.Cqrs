@@ -1,9 +1,10 @@
 ﻿using System.Threading.Tasks;
 using Voguedi.AsyncExecution;
+using Voguedi.Stores;
 
 namespace Voguedi.Events
 {
-    public interface IEventVersionStore
+    public interface IEventVersionStore : IStore
     {
         #region Methods
 

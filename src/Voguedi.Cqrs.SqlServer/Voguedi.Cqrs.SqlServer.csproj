@@ -3,16 +3,16 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace />
-    <Authors>voguedi</Authors>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>voguedi</Authors>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Nito.AsyncEx.Coordination" Version="1.0.2" />
-    <PackageReference Include="Voguedi.Utils" Version="1.1.5" />
+    <PackageReference Include="Dapper" Version="1.50.5" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Voguedi\Processors\" />
+    <ProjectReference Include="..\Voguedi.Cqrs\Voguedi.Cqrs.csproj" />
   </ItemGroup>
+
 </Project>

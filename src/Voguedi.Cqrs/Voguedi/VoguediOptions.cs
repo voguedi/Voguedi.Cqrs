@@ -1,6 +1,6 @@
 ﻿namespace Voguedi
 {
-    public class VoguediOptions
+    public sealed class VoguediOptions
     {
         #region Public Properties
 

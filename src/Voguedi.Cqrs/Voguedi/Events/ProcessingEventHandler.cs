@@ -125,12 +125,12 @@ namespace Voguedi.Events
 
             if (result.Succeeded)
             {
-                logger.LogInformation($"事件版本存储成功！ {stream}");
+                logger.LogInformation($"已发布事件版本存储成功！ {stream}");
                 await processingEvent.OnQueueCommittedAsync();
             }
             else
             {
-                logger.LogError(result.Exception, $"事件版本存储失败！ {stream}");
+                logger.LogError(result.Exception, $"已发布事件版本存储失败！ {stream}");
                 await processingEvent.OnQueueRejectedAsync();
             }
         }
