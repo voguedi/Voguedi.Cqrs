@@ -5,7 +5,9 @@ VisualStudioVersion = 15.0.28010.2048
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{62FEF381-BCA5-4C29-91BA-BE6186421B12}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Voguedi.Cqrs", "src\Voguedi.Cqrs\Voguedi.Cqrs.csproj", "{2D6294B5-40B5-4987-9383-21BE4D9FB491}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Voguedi.Cqrs", "src\Voguedi.Cqrs\Voguedi.Cqrs.csproj", "{2D6294B5-40B5-4987-9383-21BE4D9FB491}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Voguedi.Cqrs.MemoryCache", "src\Voguedi.Cqrs.MemoryCache\Voguedi.Cqrs.MemoryCache.csproj", "{EE57254B-CBCD-4000-9F50-18A234B548A3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,12 +19,17 @@ Global
 		{2D6294B5-40B5-4987-9383-21BE4D9FB491}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2D6294B5-40B5-4987-9383-21BE4D9FB491}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2D6294B5-40B5-4987-9383-21BE4D9FB491}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EE57254B-CBCD-4000-9F50-18A234B548A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EE57254B-CBCD-4000-9F50-18A234B548A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EE57254B-CBCD-4000-9F50-18A234B548A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EE57254B-CBCD-4000-9F50-18A234B548A3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{2D6294B5-40B5-4987-9383-21BE4D9FB491} = {62FEF381-BCA5-4C29-91BA-BE6186421B12}
+		{EE57254B-CBCD-4000-9F50-18A234B548A3} = {62FEF381-BCA5-4C29-91BA-BE6186421B12}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {010C73BD-0544-4AD6-8DD4-712588809960}
