@@ -73,26 +73,6 @@ namespace Voguedi.Domain.Repositories
             return AsyncExecutedResult<IEventSourcedAggregateRoot>.Success(null);
         }
 
-        async Task<AsyncExecutedResult<TAggregateRoot>> IRepository.GetAsync<TAggregateRoot, TIdentity>(TIdentity id)
-        {
-            if (Equals(id, default(TIdentity)))
-                throw new ArgumentNullException(nameof(id));
-
-            var result = await GetAsync(typeof(TAggregateRoot), id.ToString());
-
-            if (result.Succeeded)
-            {
-                var eventSourced = result.Data;
-
-                if (eventSourced is TAggregateRoot aggregateRoot)
-                    return AsyncExecutedResult<TAggregateRoot>.Success(aggregateRoot);
-
-                return AsyncExecutedResult<TAggregateRoot>.Success(null);
-            }
-
-            return AsyncExecutedResult<TAggregateRoot>.Failed(result.Exception);
-        }
-
         #endregion
     }
 }

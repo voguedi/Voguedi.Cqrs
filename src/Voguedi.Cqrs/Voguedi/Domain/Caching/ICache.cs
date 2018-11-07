@@ -1,15 +1,17 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Voguedi.Domain.AggregateRoots;
 using Voguedi.AsyncExecution;
+using Voguedi.Domain.AggregateRoots;
 
-namespace Voguedi.Domain.Repositories
+namespace Voguedi.Domain.Caching
 {
-    public interface IRepository
+    public interface ICache
     {
         #region Methods
 
         Task<AsyncExecutedResult<IEventSourcedAggregateRoot>> GetAsync(Type aggregateRootType, string aggregateRootId);
+
+        Task<AsyncExecutedResult> SetAsync(IEventSourcedAggregateRoot aggregateRoot);
 
         #endregion
     }

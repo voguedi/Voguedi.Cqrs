@@ -3,8 +3,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Voguedi.Schedulers;
+using Voguedi.BackgroundWorkers;
 using Voguedi.DisposableObjects;
+using Voguedi.IdentityGeneration;
 
 namespace Voguedi.Events
 {
@@ -13,9 +14,10 @@ namespace Voguedi.Events
         #region Private Fields
 
         readonly IProcessingEventQueueFactory queueFactory;
-        readonly IScheduler scheduler;
+        readonly IBackgroundWorker backgroundWorker;
         readonly ILogger logger;
         readonly int queueActiveExpiration;
+        readonly string backgroundWorkerKey;
         readonly ConcurrentDictionary<string, IProcessingEventQueue> queueMapping = new ConcurrentDictionary<string, IProcessingEventQueue>();
         bool disposed;
         bool started;
@@ -24,12 +26,13 @@ namespace Voguedi.Events
 
         #region Ctors
 
-        public EventProcessor(IProcessingEventQueueFactory queueFactory, IScheduler scheduler, ILogger<EventProcessor> logger, VoguediOptions options)
+        public EventProcessor(IProcessingEventQueueFactory queueFactory, IBackgroundWorker backgroundWorker, ILogger<EventProcessor> logger, VoguediOptions options)
         {
             this.queueFactory = queueFactory;
-            this.scheduler = scheduler;
+            this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             queueActiveExpiration = options.MemoryQueueActiveExpiration;
+            backgroundWorkerKey = $"{nameof(EventProcessor)}-{StringIdentityGenerator.Instance.Generate()}";
         }
 
         #endregion
@@ -41,7 +44,7 @@ namespace Voguedi.Events
             if (!disposed)
             {
                 if (disposing)
-                    scheduler.Stop(nameof(EventProcessor));
+                    backgroundWorker.Stop(backgroundWorkerKey);
 
                 disposed = true;
             }
@@ -88,7 +91,7 @@ namespace Voguedi.Events
         {
             if (!started)
             {
-                scheduler.Start(nameof(EventProcessor), ClearInactiveQueue, queueActiveExpiration, queueActiveExpiration);
+                backgroundWorker.Start(backgroundWorkerKey, ClearInactiveQueue, queueActiveExpiration, queueActiveExpiration);
                 started = true;
             }
         }

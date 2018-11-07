@@ -3,8 +3,10 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Voguedi.BackgroundWorkers;
 using Voguedi.DisposableObjects;
-using Voguedi.Schedulers;
+using Voguedi.Domain.Caching;
+using Voguedi.IdentityGeneration;
 
 namespace Voguedi.Events
 {
@@ -13,9 +15,11 @@ namespace Voguedi.Events
         #region Private Fields
 
         readonly ICommittingEventQueueFactory queueFactory;
-        readonly IScheduler scheduler;
+        readonly ICache cache;
+        readonly IBackgroundWorker backgroundWorker;
         readonly ILogger logger;
         readonly int queueActiveExpiration;
+        readonly string backgroundWorkerKey;
         readonly ConcurrentDictionary<string, ICommittingEventQueue> queueMapping = new ConcurrentDictionary<string, ICommittingEventQueue>();
         bool disposed;
         bool started;
@@ -24,17 +28,30 @@ namespace Voguedi.Events
 
         #region Ctors
 
-        public EventCommitter(ICommittingEventQueueFactory queueFactory, IScheduler scheduler, ILogger<EventCommitter> logger, VoguediOptions options)
+        public EventCommitter(ICommittingEventQueueFactory queueFactory, ICache cache, IBackgroundWorker backgroundWorker, ILogger<EventCommitter> logger, VoguediOptions options)
         {
             this.queueFactory = queueFactory;
-            this.scheduler = scheduler;
+            this.cache = cache;
+            this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             queueActiveExpiration = options.MemoryQueueActiveExpiration;
+            backgroundWorkerKey = $"{nameof(EventCommitter)}-{StringIdentityGenerator.Instance.Generate()}";
         }
 
         #endregion
 
         #region Private Methods
+
+        async Task SetAggregateRootCache(CommittingEvent committingEvent)
+        {
+            var stream = committingEvent.Stream;
+            var aggregateRoot = committingEvent.AggregateRoot;
+            aggregateRoot.CommitEvents(stream.Version);
+            var result = await cache.SetAsync(aggregateRoot);
+
+            if (!result.Succeeded)
+                logger.LogError(result.Exception, $"聚合根缓存更新失败！ {stream}");
+        }
 
         void ClearInactiveQueue()
         {
@@ -62,7 +79,7 @@ namespace Voguedi.Events
             if (!disposed)
             {
                 if (disposing)
-                    scheduler.Stop(nameof(EventCommitter));
+                    backgroundWorker.Stop(backgroundWorkerKey);
 
                 disposed = true;
             }
@@ -81,14 +98,14 @@ namespace Voguedi.Events
 
             var queue = queueMapping.GetOrAdd(aggregateRootId, queueFactory.Create);
             queue.Enqueue(committingEvent);
-            return Task.CompletedTask;
+            return SetAggregateRootCache(committingEvent);
         }
 
         public void Start()
         {
             if (!started)
             {
-                scheduler.Start(nameof(EventCommitter), ClearInactiveQueue, queueActiveExpiration, queueActiveExpiration);
+                backgroundWorker.Start(backgroundWorkerKey, ClearInactiveQueue, queueActiveExpiration, queueActiveExpiration);
                 started = true;
             }
         }

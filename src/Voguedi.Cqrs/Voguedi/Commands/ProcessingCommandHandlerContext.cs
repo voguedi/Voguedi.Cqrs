@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Voguedi.Domain.AggregateRoots;
+using Voguedi.Domain.Caching;
 using Voguedi.Domain.Repositories;
 
 namespace Voguedi.Commands
@@ -11,7 +12,8 @@ namespace Voguedi.Commands
     class ProcessingCommandHandlerContext : IProcessingCommandHandlerContext
     {
         #region Private Fields
-        
+
+        readonly ICache cache;
         readonly IRepository repository;
         readonly ConcurrentDictionary<string, IEventSourcedAggregateRoot> aggregateRootMapping = new ConcurrentDictionary<string, IEventSourcedAggregateRoot>();
 
@@ -19,16 +21,29 @@ namespace Voguedi.Commands
 
         #region Ctors
 
-        public ProcessingCommandHandlerContext(IRepository repository) => this.repository = repository;
+        public ProcessingCommandHandlerContext(ICache cache, IRepository repository)
+        {
+            this.cache = cache;
+            this.repository = repository;
+        }
 
         #endregion
 
         #region Private Methods
 
-        async Task<TAggregateRoot> GetAggregateRootFromEventSourcedAsync<TAggregateRoot, TIdentity>(TIdentity aggregateRootId)
-            where TAggregateRoot : class, IAggregateRoot<TIdentity>
+        async Task<IEventSourcedAggregateRoot> GetAggregateRootFromCacheAsync(Type aggregateRootType, string aggregateRootId)
         {
-            var result = await repository.GetAsync<TAggregateRoot, TIdentity>(aggregateRootId);
+            var result = await cache.GetAsync(aggregateRootType, aggregateRootId);
+
+            if (result.Succeeded)
+                return result.Data;
+
+            throw result.Exception;
+        }
+
+        async Task<IEventSourcedAggregateRoot> GetAggregateRootFromEventSourcedAsync(Type aggregateRootType, string aggregateRootId)
+        {
+            var result = await repository.GetAsync(aggregateRootType, aggregateRootId);
 
             if (result.Succeeded)
                 return result.Data;
@@ -66,7 +81,10 @@ namespace Voguedi.Commands
             if (aggregateRootMapping.TryGetValue(key, out var value) && value is TAggregateRoot aggregateRoot)
                 return aggregateRoot;
 
-            aggregateRoot = await GetAggregateRootFromEventSourcedAsync<TAggregateRoot, TIdentity>(aggregateRootId);
+            aggregateRoot = await GetAggregateRootFromCacheAsync(typeof(TAggregateRoot), key) as TAggregateRoot;
+
+            if (aggregateRoot == null)
+                aggregateRoot = await GetAggregateRootFromEventSourcedAsync(typeof(TAggregateRoot), key) as TAggregateRoot;
 
             if (aggregateRoot != null)
             {

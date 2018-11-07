@@ -3,8 +3,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Voguedi.Schedulers;
+using Voguedi.BackgroundWorkers;
 using Voguedi.DisposableObjects;
+using Voguedi.IdentityGeneration;
 
 namespace Voguedi.Commands
 {
@@ -13,9 +14,10 @@ namespace Voguedi.Commands
         #region Private Fields
 
         readonly IProcessingCommandQueueFactory queueFactory;
-        readonly IScheduler scheduler;
+        readonly IBackgroundWorker backgroundWorker;
         readonly ILogger logger;
         readonly int queueActiveExpiration;
+        readonly string backgroundWorkerKey;
         readonly ConcurrentDictionary<string, IProcessingCommandQueue> queueMapping = new ConcurrentDictionary<string, IProcessingCommandQueue>();
         bool disposed;
         bool started;
@@ -24,12 +26,13 @@ namespace Voguedi.Commands
 
         #region Ctors
 
-        public CommandProcessor(IProcessingCommandQueueFactory queueFactory, IScheduler scheduler, ILogger<CommandProcessor> logger, VoguediOptions options)
+        public CommandProcessor(IProcessingCommandQueueFactory queueFactory, IBackgroundWorker backgroundWorker, ILogger<CommandProcessor> logger, VoguediOptions options)
         {
             this.queueFactory = queueFactory;
-            this.scheduler = scheduler;
+            this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             queueActiveExpiration = options.MemoryQueueActiveExpiration;
+            backgroundWorkerKey = $"{nameof(CommandProcessor)}-{StringIdentityGenerator.Instance.Generate()}";
         }
 
         #endregion
@@ -41,7 +44,7 @@ namespace Voguedi.Commands
             if (!disposed)
             {
                 if (disposing)
-                    scheduler.Stop(nameof(CommandProcessor));
+                    backgroundWorker.Stop(backgroundWorkerKey);
 
                 disposed = true;
             }
@@ -89,7 +92,7 @@ namespace Voguedi.Commands
         {
             if (!started)
             {
-                scheduler.Start(nameof(CommandProcessor), ClearInactiveQueue, queueActiveExpiration, queueActiveExpiration);
+                backgroundWorker.Start(backgroundWorkerKey, ClearInactiveQueue, queueActiveExpiration, queueActiveExpiration);
                 started = true;
             }
         }
