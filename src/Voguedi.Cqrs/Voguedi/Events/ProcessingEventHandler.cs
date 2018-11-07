@@ -147,8 +147,8 @@ namespace Voguedi.Events
 
             if (result.Succeeded)
             {
-                var currentVersion = result.Data;
-                var exceptedVersion = currentVersion + 1;
+                var storedVersion = result.Data;
+                var exceptedVersion = storedVersion + 1;
 
                 if (streamVersion == exceptedVersion)
                 {
@@ -157,12 +157,12 @@ namespace Voguedi.Events
                 }
                 else if (streamVersion > exceptedVersion)
                 {
-                    logger.LogInformation($"当前事件版本大于待处理版本！ [CurrentVersion = {currentVersion}, EventStream = {stream}]");
+                    logger.LogInformation($"当前事件版本大于待处理版本！ [StoredVersion = {storedVersion}, ProcessingEventStream = {stream}]");
                     processingEvent.EnqueueToWaitingQueue();
                 }
                 else
                 {
-                    logger.LogError($"当前事件版本小于待处理版本！ [CurrentVersion = {currentVersion}, EventStream = {stream}]");
+                    logger.LogError($"当前事件版本小于待处理版本！ [StoredVersion = {storedVersion}, ProcessingEventStream = {stream}]");
                     await processingEvent.OnQueueRejectedAsync();
                 }
             }

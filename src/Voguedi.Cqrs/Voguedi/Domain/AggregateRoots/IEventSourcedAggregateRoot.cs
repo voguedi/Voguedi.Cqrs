@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Voguedi.Events;
 
 namespace Voguedi.Domain.AggregateRoots
@@ -7,9 +8,9 @@ namespace Voguedi.Domain.AggregateRoots
     {
         #region Methods
 
-        string GetId();
+        Type GetAggregateRootType();
 
-        string GetTypeName();
+        string GetAggregateRootId();
 
         long GetVersion();
 

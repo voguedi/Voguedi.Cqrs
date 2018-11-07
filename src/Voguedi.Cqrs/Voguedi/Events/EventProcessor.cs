@@ -80,7 +80,7 @@ namespace Voguedi.Events
             var aggregateRootId = processingEvent.Stream.AggregateRootId;
 
             if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentException(nameof(processingEvent), $"处理事件的聚合根 Id 不能为空！");
+                throw new ArgumentException(nameof(processingEvent), $"事件处理的聚合根 Id 不能为空！");
 
             var queue = queueMapping.GetOrAdd(aggregateRootId, queueFactory.Create);
             queue.Enqueue(processingEvent);

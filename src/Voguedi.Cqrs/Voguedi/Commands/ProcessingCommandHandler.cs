@@ -61,7 +61,7 @@ namespace Voguedi.Commands
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"命令处理器执行失败！ [CommandType = {commandType}, CommandId = {command.Id}, CommandHandlerType = {handlerType}]");
+                logger.LogError(ex, $"命令处理器执行失败，尝试获取已存储的事件！ [CommandType = {commandType}, CommandId = {command.Id}, CommandHandlerType = {handlerType}]");
                 await TryGetAndPublishEventStreamAsync(processingCommand);
             }
         }
@@ -85,7 +85,7 @@ namespace Voguedi.Commands
 
                 if (handlers?.Count() > 1)
                 {
-                    logger.LogError($"命令注册超过1个处理器！ [CommandType = {commandType}, CommandId = {command.Id}, CommandHandlerTypes = [{string.Join(" | ", handlers.Select(item => item.GetType()))}]]");
+                    logger.LogError($"命令注册超过 1 个处理器！ [CommandType = {commandType}, CommandId = {command.Id}, CommandHandlerTypes = [{string.Join(" | ", handlers.Select(item => item.GetType()))}]]");
                     return processingCommand.OnQueueRejectedAsync();
                 }
 
@@ -97,8 +97,9 @@ namespace Voguedi.Commands
         async Task TryGetAndPublishEventStreamAsync(ProcessingCommand processingCommand)
         {
             var command = processingCommand.Command;
+            var commandId = command.Id;
             var aggregateRootId = command.AggregateRootId;
-            var result = await eventStore.GetStreamAsync(aggregateRootId, command.Id);
+            var result = await eventStore.GetStreamAsync(aggregateRootId, commandId);
 
             if (result.Succeeded)
             {
@@ -106,18 +107,18 @@ namespace Voguedi.Commands
 
                 if (eventStream != null)
                 {
-                    logger.LogInformation($"获取命令产生的事件成功！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRootId = {aggregateRootId}, EventStream = {eventStream}]");
+                    logger.LogInformation($"获取已存储的事件成功！ [CommandType = {command.GetType()}, CommandId = {commandId}, AggregateRootId = {aggregateRootId}, EventStream = {eventStream}]");
                     await PublishEventStreamAsync(processingCommand, eventStream);
                 }
                 else
                 {
-                    logger.LogError($"未获取到任何命令产生的事件！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRootId = {aggregateRootId}]");
+                    logger.LogError($"未获取到任何已存储的事件！ [CommandType = {command.GetType()}, CommandId = {commandId}, AggregateRootId = {aggregateRootId}]");
                     await processingCommand.OnQueueRejectedAsync();
                 }
             }
             else
             {
-                logger.LogError(result.Exception, $"获取命令产生的事件失败！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRootId = {aggregateRootId}]");
+                logger.LogError(result.Exception, $"获取已存储的事件失败！ [CommandType = {command.GetType()}, CommandId = {commandId}, AggregateRootId = {aggregateRootId}]");
                 await processingCommand.OnQueueRejectedAsync();
             }
         }
@@ -129,12 +130,12 @@ namespace Voguedi.Commands
 
             if (result.Succeeded)
             {
-                logger.LogInformation($"命令产生的事件发布成功！ [CommandType = {command.GetType()}, CommandId = {command.Id}, EventStream = {eventStream}]");
+                logger.LogInformation($"事件发布成功！ [CommandType = {command.GetType()}, CommandId = {command.Id}, EventStream = {eventStream}]");
                 await processingCommand.OnQueueCommittedAsync();
             }
             else
             {
-                logger.LogInformation(result.Exception, $"命令产生的事件发布失败！ [CommandType = {command.GetType()}, CommandId = {command.Id}, EventStream = {eventStream}]");
+                logger.LogInformation(result.Exception, $"事件发布失败！ [CommandType = {command.GetType()}, CommandId = {command.Id}, EventStream = {eventStream}]");
                 await processingCommand.OnQueueRejectedAsync();
             }
         }
@@ -142,28 +143,33 @@ namespace Voguedi.Commands
         Task TryGetAndCommitEvent(ProcessingCommand processingCommand, IProcessingCommandHandlerContext context)
         {
             var command = processingCommand.Command;
+            var commandType = command.GetType();
+            var commandId = command.Id;
             var aggregateRoots = context.GetAggregateRoots().Where(a => a.GetUncommittedEvents().Any());
 
             if (aggregateRoots?.Count() == 1)
             {
                 var aggregateRoot = aggregateRoots.First();
+                var aggregateRootType = aggregateRoot.GetAggregateRootType();
+                var aggregateRootId = aggregateRoot.GetAggregateRootId();
                 var eventStream = new EventStream(
-                    command.Id,
-                    aggregateRoot.GetTypeName(),
-                    aggregateRoot.GetId(),
+                    commandId,
+                    aggregateRootType.FullName,
+                    aggregateRootId,
                     aggregateRoot.GetVersion() + 1,
                     aggregateRoot.GetUncommittedEvents());
                 var committingEvent = new CommittingEvent(eventStream, processingCommand, aggregateRoot);
+                logger.LogInformation($"获取命令处理的聚合根成功！ [CommandType = {commandType}, CommandId = {commandId}, AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
                 return eventCommitter.CommitAsync(committingEvent);
             }
 
             if (aggregateRoots?.Count() > 1)
             {
-                logger.LogError($"命令处理超过1个聚合根！ [CommandType = {command.GetType()}, CommandId = {command.Id}, AggregateRoots = [{string.Join(" | ", aggregateRoots.Select(a => $"Type = {a.GetType()}, Id = {a.GetId()}"))}]]");
+                logger.LogError($"命令处理超过1个聚合根！ [CommandType = {commandType}, CommandId = {commandId}, AggregateRoots = [{string.Join(" | ", aggregateRoots.Select(c => $"Type = {c.GetAggregateRootType()}, Id = {c.GetAggregateRootId()}"))}]]");
                 return processingCommand.OnQueueRejectedAsync();
             }
 
-            logger.LogWarning($"命令未处理任何聚合根！ [CommandType = {command.GetType()}, CommandId = {command.Id}]");
+            logger.LogWarning($"命令未处理任何聚合根！ [CommandType = {commandType}, CommandId = {commandId}]");
             return TryGetAndPublishEventStreamAsync(processingCommand);
         }
 

@@ -49,8 +49,10 @@ namespace Voguedi.Events
             aggregateRoot.CommitEvents(stream.Version);
             var result = await cache.SetAsync(aggregateRoot);
 
-            if (!result.Succeeded)
-                logger.LogError(result.Exception, $"聚合根缓存更新失败！ {stream}");
+            if (result.Succeeded)
+                logger.LogInformation($"事件处理的聚合根缓存更新成功！ [AggregateRootType = {aggregateRoot.GetAggregateRootType()}, AggregateRootId = {aggregateRoot.GetAggregateRootId()}]");
+            else
+                logger.LogError(result.Exception, $"事件处理的聚合根缓存更新失败！ [AggregateRootType = {aggregateRoot.GetAggregateRootType()}, AggregateRootId = {aggregateRoot.GetAggregateRootId()}]");
         }
 
         void ClearInactiveQueue()
@@ -94,7 +96,7 @@ namespace Voguedi.Events
             var aggregateRootId = committingEvent.ProcessingCommand.Command.AggregateRootId;
 
             if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentException(nameof(committingEvent), $"提交事件的聚合根 Id 不能为空！");
+                throw new ArgumentException(nameof(committingEvent), $"事件处理的聚合根 Id 不能为空！");
 
             var queue = queueMapping.GetOrAdd(aggregateRootId, queueFactory.Create);
             queue.Enqueue(committingEvent);

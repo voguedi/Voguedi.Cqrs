@@ -85,9 +85,9 @@ namespace Voguedi.Domain.AggregateRoots
 
         #region IAggregateRoot<TIdentity>
 
-        public string GetId() => Id?.ToString();
+        public string GetAggregateRootId() => Id?.ToString();
 
-        public string GetTypeName() => GetType().FullName;
+        public Type GetAggregateRootType() => GetType();
 
         public long GetVersion() => version;
 

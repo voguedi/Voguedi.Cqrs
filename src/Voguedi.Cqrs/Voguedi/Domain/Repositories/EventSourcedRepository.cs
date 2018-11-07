@@ -55,14 +55,22 @@ namespace Voguedi.Domain.Repositories
 
             if (aggregateRoot != null)
             {
-                var result = await eventStore.GetStreamsAsync(aggregateRoot.GetTypeName(), aggregateRoot.GetId());
+                var result = await eventStore.GetStreamsAsync(aggregateRootType.FullName, aggregateRootId);
 
                 if (result.Succeeded)
                 {
                     var eventStream = result.Data;
-                    aggregateRoot.ReplayEvents(eventStream);
-                    logger.LogInformation($"事件溯源重建聚合根成功！ [AggregateRootType = {aggregateRoot.GetType()}, AggregateRootId = {aggregateRoot.GetId()}, Version = {aggregateRoot.GetVersion()}, EventStream = {eventStream}]");
-                    return AsyncExecutedResult<IEventSourcedAggregateRoot>.Success(aggregateRoot); ;
+
+                    try
+                    {
+                        aggregateRoot.ReplayEvents(eventStream);
+                        logger.LogInformation($"事件溯源重建聚合根成功！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}, EventStream = {eventStream}]");
+                        return AsyncExecutedResult<IEventSourcedAggregateRoot>.Success(aggregateRoot);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, $"事件溯源重建聚合根失败！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}, EventStream = {eventStream}]");
+                    }
                 }
 
                 logger.LogError(result.Exception, $"事件溯源重建聚合根失败！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
