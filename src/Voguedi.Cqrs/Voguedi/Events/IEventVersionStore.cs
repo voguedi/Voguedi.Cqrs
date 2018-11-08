@@ -1,18 +1,16 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Voguedi.AsyncExecution;
+using Voguedi.Messaging;
 
 namespace Voguedi.Events
 {
-    public interface IEventVersionStore
+    public interface IEventVersionStore : IMessageStore
     {
         #region Methods
 
         Task<AsyncExecutedResult> SaveAsync(string aggregateRootTypeName, string aggregateRootId, long version);
 
         Task<AsyncExecutedResult<long>> GetAsync(string aggregateRootTypeName, string aggregateRootId);
-
-        Task InitializeAsync(CancellationToken cancellationToken);
 
         #endregion
     }

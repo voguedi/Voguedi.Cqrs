@@ -39,32 +39,6 @@ namespace Voguedi.Messaging
 
         #endregion
 
-        #region DisposableObject
-
-        protected override void Dispose(bool disposing)
-        {
-            if (!disposed)
-            {
-                if (disposing)
-                {
-                    cancellationTokenSource.Cancel();
-
-                    try
-                    {
-                        startedTask.Wait(TimeSpan.FromSeconds(2));
-                    }
-                    catch (OperationCanceledException ex)
-                    {
-                        logger.LogError(ex, "操作取消！");
-                    }
-                }
-
-                disposed = true;
-            }
-        }
-
-        #endregion
-
         #region Private Methods
 
         IReadOnlyList<MessageSubscriberAttribute> GetAttributes()
@@ -135,6 +109,32 @@ namespace Voguedi.Messaging
         protected abstract Type GetSubscriberBaseType();
 
         protected abstract void Process(ReceivingMessage receivingMessage, IMessageConsumer consumer);
+
+        #endregion
+
+        #region DisposableObject
+
+        protected override void Dispose(bool disposing)
+        {
+            if (!disposed)
+            {
+                if (disposing)
+                {
+                    cancellationTokenSource.Cancel();
+
+                    try
+                    {
+                        startedTask.Wait(TimeSpan.FromSeconds(2));
+                    }
+                    catch (OperationCanceledException ex)
+                    {
+                        logger.LogError(ex, "操作取消！");
+                    }
+                }
+
+                disposed = true;
+            }
+        }
 
         #endregion
 

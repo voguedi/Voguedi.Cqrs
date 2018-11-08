@@ -1,11 +1,11 @@
 ﻿using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using Voguedi.AsyncExecution;
+using Voguedi.Messaging;
 
 namespace Voguedi.Events
 {
-    public interface IEventStore
+    public interface IEventStore : IMessageStore
     {
         #region Methods
 
@@ -20,8 +20,6 @@ namespace Voguedi.Events
             string aggregateRootId,
             long minVersion = -1L,
             long maxVersion = long.MaxValue);
-
-        Task InitializeAsync(CancellationToken cancellationToken);
 
         #endregion
     }

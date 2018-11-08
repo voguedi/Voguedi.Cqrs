@@ -1,14 +1,12 @@
-﻿using System;
+﻿using Voguedi.Messaging;
 
 namespace Voguedi.Commands
 {
-    public interface ICommandProcessor : IDisposable
+    public interface ICommandProcessor : IMessageService
     {
         #region Methods
 
         void Process(ProcessingCommand processingCommand);
-
-        void Start();
 
         #endregion
     }

@@ -1,14 +1,12 @@
-﻿using System;
+﻿using Voguedi.Messaging;
 
 namespace Voguedi.Events
 {
-    public interface IEventProcessor : IDisposable
+    public interface IEventProcessor : IMessageService
     {
         #region Methods
 
         void Process(ProcessingEvent processingEvent);
-
-        void Start();
 
         #endregion
     }

@@ -6,7 +6,7 @@ namespace Voguedi
     {
         #region Public Properties
 
-        public TimeSpan SlidingExpiration { get; set; }
+        public TimeSpan SlidingExpiration { get; set; } = TimeSpan.FromDays(3);
 
         public DateTimeOffset? AbsoluteExpiration { get; set; }
 
