@@ -9,10 +9,6 @@
 
   <ItemGroup>
     <PackageReference Include="Nito.AsyncEx.Coordination" Version="1.0.2" />
-    <PackageReference Include="Voguedi.Utils" Version="1.1.5" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Voguedi\Processors\" />
+    <PackageReference Include="Voguedi.Utils" Version="1.1.6" />
   </ItemGroup>
 </Project>

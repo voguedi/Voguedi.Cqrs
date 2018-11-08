@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace Voguedi.Processors
+namespace Voguedi.Messaging
 {
-    public interface IProcessor : IDisposable
+    public interface IMessageSubscriber : IDisposable
     {
         #region Methods
 

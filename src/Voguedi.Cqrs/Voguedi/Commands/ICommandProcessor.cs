@@ -1,13 +1,14 @@
-﻿using System.Threading.Tasks;
-using Voguedi.Processors;
+﻿using System;
 
 namespace Voguedi.Commands
 {
-    public interface ICommandProcessor : IProcessor
+    public interface ICommandProcessor : IDisposable
     {
         #region Methods
 
-        Task ProcessAsync(ProcessingCommand processingCommand);
+        void Process(ProcessingCommand processingCommand);
+
+        void Start();
 
         #endregion
     }

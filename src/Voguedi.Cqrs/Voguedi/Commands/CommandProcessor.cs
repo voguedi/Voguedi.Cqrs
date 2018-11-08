@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Voguedi.BackgroundWorkers;
 using Voguedi.DisposableObjects;
@@ -37,21 +36,6 @@ namespace Voguedi.Commands
 
         #endregion
 
-        #region DisposableObject
-
-        protected override void Dispose(bool disposing)
-        {
-            if (!disposed)
-            {
-                if (disposing)
-                    backgroundWorker.Stop(backgroundWorkerKey);
-
-                disposed = true;
-            }
-        }
-
-        #endregion
-
         #region Private Methods
 
         void ClearInactiveQueue()
@@ -73,9 +57,24 @@ namespace Voguedi.Commands
 
         #endregion
 
+        #region DisposableObject
+
+        protected override void Dispose(bool disposing)
+        {
+            if (!disposed)
+            {
+                if (disposing)
+                    backgroundWorker.Stop(backgroundWorkerKey);
+
+                disposed = true;
+            }
+        }
+
+        #endregion
+
         #region ICommandProcessor
 
-        public Task ProcessAsync(ProcessingCommand processingCommand)
+        public void Process(ProcessingCommand processingCommand)
         {
             var command = processingCommand.Command;
             var aggregateRootId = command.AggregateRootId;
@@ -85,7 +84,6 @@ namespace Voguedi.Commands
 
             var queue = queueMapping.GetOrAdd(aggregateRootId, queueFactory.Create);
             queue.Enqueue(processingCommand);
-            return Task.CompletedTask;
         }
 
         public void Start()

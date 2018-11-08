@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Voguedi.BackgroundWorkers;
 using Voguedi.DisposableObjects;
@@ -75,7 +74,7 @@ namespace Voguedi.Events
 
         #region IEventProcessor
 
-        public Task ProcessAsync(ProcessingEvent processingEvent)
+        public void Process(ProcessingEvent processingEvent)
         {
             var aggregateRootId = processingEvent.Stream.AggregateRootId;
 
@@ -84,7 +83,6 @@ namespace Voguedi.Events
 
             var queue = queueMapping.GetOrAdd(aggregateRootId, queueFactory.Create);
             queue.Enqueue(processingEvent);
-            return Task.CompletedTask;
         }
 
         public void Start()

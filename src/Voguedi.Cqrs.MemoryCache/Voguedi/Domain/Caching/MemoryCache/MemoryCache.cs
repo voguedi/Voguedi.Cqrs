@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
@@ -14,21 +15,24 @@ namespace Voguedi.Domain.Caching.MemoryCache
         #region Private Fields
 
         readonly IDistributedCache cache;
-        readonly IBinaryObjectSerializer objectSerializer;
+        readonly IStringObjectSerializer objectSerializer;
         readonly ILogger logger;
         readonly MemoryCacheOptions options;
-        readonly string baseKey = StringIdentityGenerator.Instance.Generate();
+        readonly Encoding encoding;
+        readonly string baseKey;
 
         #endregion
 
         #region Ctors
 
-        public MemoryCache(IDistributedCache cache, IBinaryObjectSerializer objectSerializer, ILogger<MemoryCache> logger, MemoryCacheOptions options)
+        public MemoryCache(IDistributedCache cache, IStringObjectSerializer objectSerializer, IStringIdentityGenerator identityGenerator, ILogger<MemoryCache> logger, MemoryCacheOptions options)
         {
             this.cache = cache;
             this.objectSerializer = objectSerializer;
             this.logger = logger;
             this.options = options;
+            encoding = Encoding.UTF8;
+            baseKey = identityGenerator.Generate();
         }
 
         #endregion
@@ -55,7 +59,7 @@ namespace Voguedi.Domain.Caching.MemoryCache
 
                 if (content != null)
                 {
-                    var obj = objectSerializer.Deserialize(content, aggregateRootType);
+                    var obj = objectSerializer.Deserialize(encoding.GetString(content), aggregateRootType);
 
                     if (obj is IEventSourcedAggregateRoot aggregateRoot)
                     {
@@ -86,7 +90,7 @@ namespace Voguedi.Domain.Caching.MemoryCache
             {
                 await cache.SetAsync(
                     BuildKey(aggregateRootId),
-                    objectSerializer.Serialize(aggregateRootType, aggregateRoot),
+                    encoding.GetBytes(objectSerializer.Serialize(aggregateRootType, aggregateRoot)),
                     new DistributedCacheEntryOptions
                     {
                         AbsoluteExpiration = options.AbsoluteExpiration,

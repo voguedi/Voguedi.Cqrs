@@ -1,13 +1,15 @@
-﻿using System.Threading.Tasks;
-using Voguedi.Processors;
+﻿using System;
+using System.Threading.Tasks;
 
 namespace Voguedi.Events
 {
-    public interface IEventCommitter : IProcessor
+    public interface IEventCommitter : IDisposable
     {
         #region Methods
 
         Task CommitAsync(CommittingEvent committingEvent);
+
+        void Start();
 
         #endregion
     }

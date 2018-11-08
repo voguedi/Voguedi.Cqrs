@@ -1,13 +1,14 @@
-﻿using System.Threading.Tasks;
-using Voguedi.Processors;
+﻿using System;
 
 namespace Voguedi.Events
 {
-    public interface IEventProcessor : IProcessor
+    public interface IEventProcessor : IDisposable
     {
         #region Methods
 
-        Task ProcessAsync(ProcessingEvent processingEvent);
+        void Process(ProcessingEvent processingEvent);
+
+        void Start();
 
         #endregion
     }
