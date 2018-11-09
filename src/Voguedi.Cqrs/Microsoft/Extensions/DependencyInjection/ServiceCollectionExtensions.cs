@@ -6,8 +6,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Voguedi;
 using Voguedi.Commands;
+using Voguedi.Domain.Events;
 using Voguedi.Domain.Repositories;
-using Voguedi.Events;
 using Voguedi.Messaging;
 using Voguedi.Reflection;
 
@@ -71,12 +71,11 @@ namespace Microsoft.Extensions.DependencyInjection
             AddEventHandler(services);
 
             services.TryAddSingleton<IMessageQueueTopicProvider, MessageQueueTopicProvider>();
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, IMessageSubscriber>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, ICommandProcessor>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, ICommandSubscriber>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, IEventCommitter>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, IEventProcessor>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, IEventSubscriber>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, CommandProcessor>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, CommandSubscriber>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, EventCommitter>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, EventProcessor>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, EventSubscriber>());
 
             services.TryAddSingleton<IBootstrapper, Bootstrapper>();
             services.AddTransient<IStartupFilter, StartupFilter>();

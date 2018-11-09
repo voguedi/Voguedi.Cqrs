@@ -54,8 +54,8 @@ namespace Voguedi.Messaging
 
                     if (attribute != null)
                         attributes.Add(attribute);
-
-                    throw new Exception($"订阅者 {type} 未标记相关特性！");
+                    else
+                        throw new Exception($"订阅者 {type} 未标记相关特性！");
                 }
             }
 

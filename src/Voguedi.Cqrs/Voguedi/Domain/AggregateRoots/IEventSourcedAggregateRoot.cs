@@ -1,18 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
-using Voguedi.Events;
+using Voguedi.Domain.Events;
 
 namespace Voguedi.Domain.AggregateRoots
 {
     public interface IEventSourcedAggregateRoot
     {
+        #region Properties
+
+        long Version { get; }
+
+        #endregion
+
         #region Methods
 
         Type GetAggregateRootType();
 
         string GetAggregateRootId();
-
-        long GetVersion();
 
         IReadOnlyList<IEvent> GetUncommittedEvents();
 

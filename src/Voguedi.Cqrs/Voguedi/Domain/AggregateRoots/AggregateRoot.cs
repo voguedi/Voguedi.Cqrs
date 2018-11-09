@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Voguedi.Domain.Entities;
-using Voguedi.Events;
+using Voguedi.Domain.Events;
 
 namespace Voguedi.Domain.AggregateRoots
 {
@@ -14,11 +14,12 @@ namespace Voguedi.Domain.AggregateRoots
 
         readonly BlockingCollection<IEvent> uncommittedEvents = new BlockingCollection<IEvent>(new ConcurrentQueue<IEvent>());
         readonly ConcurrentDictionary<Type, MethodInfo> eventHandleMethodMapping = new ConcurrentDictionary<Type, MethodInfo>();
-        long version;
 
         #endregion
 
         #region Ctors
+
+        protected AggregateRoot() { }
 
         protected AggregateRoot(TIdentity id) : base(id) { }
 
@@ -76,7 +77,7 @@ namespace Voguedi.Domain.AggregateRoots
                 throw new ArgumentNullException(nameof(e));
 
             e.AggregateRootId = Id;
-            e.Version = version + 1;
+            e.Version = Version + 1;
             HandleEvent(e);
             EnqueueEvent(e);
         }
@@ -85,20 +86,20 @@ namespace Voguedi.Domain.AggregateRoots
 
         #region IAggregateRoot<TIdentity>
 
+        public long Version { get; private set; }
+
         public string GetAggregateRootId() => Id?.ToString();
 
         public Type GetAggregateRootType() => GetType();
-
-        public long GetVersion() => version;
 
         public IReadOnlyList<IEvent> GetUncommittedEvents() => uncommittedEvents.ToList();
 
         public void CommitEvents(long committedVersion)
         {
-            if (committedVersion != version + 1)
+            if (committedVersion != Version + 1)
                 throw new ArgumentException(nameof(committedVersion), $"聚合根版本提交失败，提交版本与当前版本不匹配！");
 
-            version = committedVersion;
+            Version = committedVersion;
             uncommittedEvents.Clear();
         }
 
@@ -106,20 +107,20 @@ namespace Voguedi.Domain.AggregateRoots
         {
             if (eventStreams?.Count > 0)
             {
-                var exceptedVersion = version + 1;
+                var exceptedVersion = Version + 1;
 
                 foreach (var eventStream in eventStreams)
                 {
                     if (eventStream.AggregateRootId != Id?.ToString())
                         throw new ArgumentException(nameof(eventStream), $"聚合根重放事件失败，重放事件聚合根 Id 与当前 Id 不同！");
 
-                    if (eventStream.Version != version + 1)
+                    if (eventStream.Version != Version + 1)
                         throw new ArgumentException(nameof(eventStream), $"聚合根重放事件失败，重放事件版本与当前版本不匹配！");
 
                     foreach (var e in eventStream.Events)
                         HandleEvent(e);
 
-                    version = eventStream.Version;
+                    Version = eventStream.Version;
                 }
             }
         }

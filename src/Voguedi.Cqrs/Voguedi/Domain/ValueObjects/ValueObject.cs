@@ -5,7 +5,6 @@ using System.Reflection;
 
 namespace Voguedi.Domain.ValueObjects
 {
-    [Serializable]
     public abstract class ValueObject
     {
         #region Protected Methods

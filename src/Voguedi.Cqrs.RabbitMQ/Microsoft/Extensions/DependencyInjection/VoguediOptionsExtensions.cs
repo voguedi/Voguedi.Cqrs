@@ -16,12 +16,19 @@ namespace Microsoft.Extensions.DependencyInjection
             return options;
         }
 
-        public static VoguediOptions UseRabbitMQ(this VoguediOptions options, string hostName)
+        public static VoguediOptions UseRabbitMQ(this VoguediOptions options, string hostName, string exchangeName)
         {
             if (string.IsNullOrWhiteSpace(hostName))
                 throw new ArgumentNullException(nameof(hostName));
 
-            return options.UseRabbitMQ(s => s.HostName = hostName);
+            if (string.IsNullOrWhiteSpace(exchangeName))
+                throw new ArgumentNullException(nameof(exchangeName));
+
+            return options.UseRabbitMQ(s =>
+            {
+                s.HostName = hostName;
+                s.ExchangeName = exchangeName;
+            });
         }
 
         #endregion

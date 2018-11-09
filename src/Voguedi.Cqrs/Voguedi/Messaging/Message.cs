@@ -23,8 +23,6 @@ namespace Voguedi.Messaging
 
         public virtual string GetRoutingKey() => GetType().Name;
 
-        public string GetTypeName() => GetType().FullName;
-
         #endregion
     }
 }

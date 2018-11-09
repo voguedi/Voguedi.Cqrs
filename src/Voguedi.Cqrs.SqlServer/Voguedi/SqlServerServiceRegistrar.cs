@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Voguedi.Events;
-using Voguedi.Events.SqlServer;
+using Voguedi.Domain.Events;
+using Voguedi.Domain.Events.SqlServer;
 using Voguedi.Messaging;
 
 namespace Voguedi

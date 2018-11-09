@@ -14,8 +14,6 @@ namespace Voguedi.Messaging
 
         #region Methods
 
-        string GetTypeName();
-
         string GetRoutingKey();
 
         #endregion

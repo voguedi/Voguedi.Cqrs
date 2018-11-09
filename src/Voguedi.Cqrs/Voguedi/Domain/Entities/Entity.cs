@@ -8,6 +8,8 @@ namespace Voguedi.Domain.Entities
     {
         #region Ctors
 
+        protected Entity() { }
+
         protected Entity(TIdentity id)
         {
             if (Equals(id, default(TIdentity)))
@@ -29,7 +31,7 @@ namespace Voguedi.Domain.Entities
 
         #region IEntity<TIdentity>
 
-        public TIdentity Id { get; }
+        public TIdentity Id { get; protected set; }
 
         #endregion
     }

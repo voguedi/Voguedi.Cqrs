@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="wwwroot\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Razor.Design" Version="2.1.2" PrivateAssets="All" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="4.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Voguedi.Cqrs.Json\Voguedi.Cqrs.Json.csproj" />
+    <ProjectReference Include="..\..\src\Voguedi.Cqrs.MemoryCache\Voguedi.Cqrs.MemoryCache.csproj" />
+    <ProjectReference Include="..\..\src\Voguedi.Cqrs.RabbitMQ\Voguedi.Cqrs.RabbitMQ.csproj" />
+    <ProjectReference Include="..\..\src\Voguedi.Cqrs.SqlServer\Voguedi.Cqrs.SqlServer.csproj" />
+    <ProjectReference Include="..\..\src\Voguedi.Cqrs\Voguedi.Cqrs.csproj" />
+  </ItemGroup>
+
+</Project>

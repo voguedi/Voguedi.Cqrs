@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Voguedi.Events;
+using Voguedi.Domain.Events;
 
 namespace Voguedi.Commands
 {
@@ -156,7 +156,7 @@ namespace Voguedi.Commands
                     commandId,
                     aggregateRootType.FullName,
                     aggregateRootId,
-                    aggregateRoot.GetVersion() + 1,
+                    aggregateRoot.Version + 1,
                     aggregateRoot.GetUncommittedEvents());
                 var committingEvent = new CommittingEvent(eventStream, processingCommand, aggregateRoot);
                 logger.LogInformation($"获取命令处理的聚合根成功！ [CommandType = {commandType}, CommandId = {commandId}, AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");

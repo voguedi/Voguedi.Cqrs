@@ -31,7 +31,7 @@ namespace Voguedi.Commands
 
         #region Private Methods
 
-        async Task<IEventSourcedAggregateRoot> GetEventSourcedContextFromCacheAsync(Type aggregateRootType, string aggregateRootId)
+        async Task<IEventSourcedAggregateRoot> GetAggregateRootFromCacheAsync(Type aggregateRootType, string aggregateRootId)
         {
             var result = await cache.GetAsync(aggregateRootType, aggregateRootId);
 
@@ -41,7 +41,7 @@ namespace Voguedi.Commands
             throw result.Exception;
         }
 
-        async Task<IEventSourcedAggregateRoot> GetEventSourcedContextFromEventSourcedAsync(Type aggregateRootType, string aggregateRootId)
+        async Task<IEventSourcedAggregateRoot> GetAggregateRootFromEventSourcedAsync(Type aggregateRootType, string aggregateRootId)
         {
             var result = await repository.GetAsync(aggregateRootType, aggregateRootId);
 
@@ -81,10 +81,10 @@ namespace Voguedi.Commands
             if (aggregateRootMapping.TryGetValue(key, out var value) && value is TAggregateRoot aggregateRoot)
                 return aggregateRoot;
 
-            aggregateRoot = await GetEventSourcedContextFromCacheAsync(typeof(TAggregateRoot), key) as TAggregateRoot;
+            aggregateRoot = await GetAggregateRootFromCacheAsync(typeof(TAggregateRoot), key) as TAggregateRoot;
 
             if (aggregateRoot == null)
-                aggregateRoot = await GetEventSourcedContextFromEventSourcedAsync(typeof(TAggregateRoot), key) as TAggregateRoot;
+                aggregateRoot = await GetAggregateRootFromEventSourcedAsync(typeof(TAggregateRoot), key) as TAggregateRoot;
 
             if (aggregateRoot != null)
             {
