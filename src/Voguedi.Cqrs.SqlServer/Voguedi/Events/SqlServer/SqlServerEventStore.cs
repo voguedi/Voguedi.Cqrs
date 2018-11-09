@@ -216,7 +216,7 @@ namespace Voguedi.Events.SqlServer
                     if (descriptors?.Count() > 0)
                     {
                         var streams = descriptors.Select(d => ToStream(d)).ToList();
-                        logger.LogInformation($"获取事件成功！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, MinVersion = {minVersion}, MaxVersion = {maxVersion}]");
+                        logger.LogInformation($"获取事件成功！ EventStreams = [{streams.Select(s => s.ToString())}]");
                         return AsyncExecutedResult<IReadOnlyList<EventStream>>.Success(streams);
                     }
 
@@ -287,11 +287,11 @@ namespace Voguedi.Events.SqlServer
                     using (var connection = new SqlConnection(options.ConnectionString))
                         await connection.ExecuteAsync(sql.ToString());
 
-                    logger.LogInformation("事件存储器初始化成功！");
+                    logger.LogInformation($"事件存储器初始化成功！ {sql}");
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "事件存储器初始化失败！");
+                    logger.LogError(ex, $"事件存储器初始化失败！ {sql}");
                 }
             }
         }

@@ -12,9 +12,9 @@ namespace Voguedi
     {
         #region Private Fields
 
-        readonly IApplicationLifetime applicationLifetime;
         readonly IEnumerable<IMessageService> messageServices;
         readonly IEnumerable<IMessageStore> messageStores;
+        readonly IApplicationLifetime applicationLifetime;
         readonly ILogger logger;
         readonly CancellationTokenSource cancellationTokenSource;
         readonly CancellationTokenRegistration cancellationTokenRegistration;
@@ -24,11 +24,15 @@ namespace Voguedi
 
         #region Ctors
 
-        public Bootstrapper(IApplicationLifetime applicationLifetime, IEnumerable<IMessageService> messageServices, IEnumerable<IMessageStore> messageStores, ILogger<Bootstrapper> logger)
+        public Bootstrapper(
+            IEnumerable<IMessageService> messageServices,
+            IEnumerable<IMessageStore> messageStores,
+            IApplicationLifetime applicationLifetime,
+            ILogger<Bootstrapper> logger)
         {
-            this.applicationLifetime = applicationLifetime;
             this.messageServices = messageServices;
             this.messageStores = messageStores;
+            this.applicationLifetime = applicationLifetime;
             this.logger = logger;
             cancellationTokenSource = new CancellationTokenSource();
             cancellationTokenRegistration = applicationLifetime.ApplicationStopping.Register(

@@ -7,7 +7,7 @@ namespace Microsoft.AspNetCore.Builder
     {
         #region Public Methods
 
-        public static IApplicationBuilder UseVoguedi(IApplicationBuilder applicationBuilder)
+        public static IApplicationBuilder UseVoguedi(this IApplicationBuilder applicationBuilder)
         {
             applicationBuilder.ApplicationServices.GetRequiredService<IBootstrapper>().BootstrapperAsync();
             return applicationBuilder;
