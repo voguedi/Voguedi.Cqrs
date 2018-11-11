@@ -19,9 +19,9 @@ namespace Voguedi.Domain.Events.SqlServer
         readonly ILogger logger;
         readonly SqlServerOptions options;
         const string tableName = "EventVersions";
-        const string getSql = "SELECT [Version] FROM [{0}] WHERE [AggregateRootTypeName] = @AggregateRootTypeName AND [AggregateRootId] = @AggregateRootId";
-        const string createSql = "INSERT INTO [{0}] ([Id], [AggregateRootTypeName], [AggregateRootId], [Version], [CreatedOn]) VALUES (@Id, @AggregateRootTypeName, @AggregateRootId, @Version, @CreatedOn)";
-        const string modifySql = "UPDATE [{0}] SET [Version] = @Version, [ModifiedOn] = @ModifiedOn WHERE [AggregateRootTypeName] = @AggregateRootTypeName AND [AggregateRootId] = @AggregateRootId AND [Version] = (@Version - 1)";
+        const string getSql = "SELECT [Version] FROM {0} WHERE [AggregateRootTypeName] = @AggregateRootTypeName AND [AggregateRootId] = @AggregateRootId";
+        const string createSql = "INSERT INTO {0} ([Id], [AggregateRootTypeName], [AggregateRootId], [Version], [CreatedOn]) VALUES (@Id, @AggregateRootTypeName, @AggregateRootId, @Version, @CreatedOn)";
+        const string modifySql = "UPDATE {0} SET [Version] = @Version, [ModifiedOn] = @ModifiedOn WHERE [AggregateRootTypeName] = @AggregateRootTypeName AND [AggregateRootId] = @AggregateRootId AND [Version] = (@Version - 1)";
         const string initializeSql = @"
             IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{0}')
             BEGIN
@@ -63,10 +63,10 @@ namespace Voguedi.Domain.Events.SqlServer
             {
                 var hashCode = Utils.GetHashCode(aggregateRootId);
                 var tableNameIndex = hashCode & options.TableCount;
-                return $"{options.Schema}.{tableName}_{tableNameIndex}";
+                return $"[{options.Schema}].[{tableName}_{tableNameIndex}]";
             }
 
-            return $"{options.Schema}.{tableName}";
+            return $"[{options.Schema}].[{tableName}]";
         }
 
         string BuildSql(string sql, string aggregateRootId) => string.Format(sql, GetTableName(aggregateRootId));

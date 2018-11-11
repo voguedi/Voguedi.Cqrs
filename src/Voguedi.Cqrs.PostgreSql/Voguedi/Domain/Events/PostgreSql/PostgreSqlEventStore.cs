@@ -23,10 +23,10 @@ namespace Voguedi.Domain.Events.PostgreSql
         const string tableName = "Events";
         const string versionUniqueIndexName = "IX_Events_AggregateRootId_Version";
         const string commandIdUniqueIndexName = "IX_Events_AggregateRootId_CommandId";
-        const string getByCommandIdSql = @"SELECT * FROM ""{0}"" WHERE ""AggregateRootId"" = @AggregateRootId AND ""CommandId"" = @CommandId";
-        const string getByVersionSql = @"SELECT * FROM ""{0}"" WHERE ""AggregateRootId"" = @AggregateRootId AND ""Version"" = @Version";
-        const string getAllSql = @"SELECT * FROM ""{0}"" WHERE ""AggregateRootTypeName"" = @AggregateRootTypeName AND ""AggregateRootId"" = @AggregateRootId AND ""Version"" >= @MinVersion AND ""Version"" <= @MaxVersion ORDER BY ""Version"" ASC";
-        const string saveSql = @"INSERT INTO ""{0}"" (""Id"", ""Timestamp"", ""CommandId"", ""AggregateRootTypeName"", ""AggregateRootId"", ""Version"", ""Events"") VALUES (@Id, @Timestamp, @CommandId, @AggregateRootTypeName, @AggregateRootId, @Version, @Events)";
+        const string getByCommandIdSql = @"SELECT * FROM {0} WHERE ""AggregateRootId"" = @AggregateRootId AND ""CommandId"" = @CommandId";
+        const string getByVersionSql = @"SELECT * FROM {0} WHERE ""AggregateRootId"" = @AggregateRootId AND ""Version"" = @Version";
+        const string getAllSql = @"SELECT * FROM {0} WHERE ""AggregateRootTypeName"" = @AggregateRootTypeName AND ""AggregateRootId"" = @AggregateRootId AND ""Version"" >= @MinVersion AND ""Version"" <= @MaxVersion ORDER BY ""Version"" ASC";
+        const string saveSql = @"INSERT INTO {0} (""Id"", ""Timestamp"", ""CommandId"", ""AggregateRootTypeName"", ""AggregateRootId"", ""Version"", ""Events"") VALUES (@Id, @Timestamp, @CommandId, @AggregateRootTypeName, @AggregateRootId, @Version, @Events)";
         const string initializeSql = @"
             CREATE SCHEMA IF NOT EXISTS ""{0}"";
             CREATE TABLE IF NOT EXISTS ""{0}"".""{1}""(
@@ -59,10 +59,10 @@ namespace Voguedi.Domain.Events.PostgreSql
             {
                 var hashCode = Utils.GetHashCode(aggregateRootId);
                 var tableNameIndex = hashCode & options.TableCount;
-                return $"{options.Schema}.{tableName}_{tableNameIndex}";
+                return $@"""{options.Schema}"".""{tableName}_{tableNameIndex}""";
             }
 
-            return $"{options.Schema}.{tableName}";
+            return $@"""{options.Schema}"".""{tableName}""";
         }
 
         string BuildSql(string sql, string aggregateRootId) => string.Format(sql, GetTableName(aggregateRootId));
