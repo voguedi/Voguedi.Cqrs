@@ -9,44 +9,36 @@ using Voguedi.AsyncExecution;
 using Voguedi.IdentityGeneration;
 using Voguedi.Utilities;
 
-namespace Voguedi.Domain.Events.SqlServer
+namespace Voguedi.Domain.Events.PostgreSql
 {
-    class SqlServerEventVersionStore : IEventVersionStore
+    class PostgreSqlEventVersionStore : IEventVersionStore
     {
         #region Private Fields
 
         readonly IStringIdentityGenerator identityGenerator;
         readonly ILogger logger;
-        readonly SqlServerOptions options;
+        readonly PostgreSqlOptions options;
         const string tableName = "EventVersions";
-        const string getSql = "SELECT [Version] FROM [{0}] WHERE [AggregateRootTypeName] = @AggregateRootTypeName AND [AggregateRootId] = @AggregateRootId";
-        const string createSql = "INSERT INTO [{0}] ([Id], [AggregateRootTypeName], [AggregateRootId], [Version], [CreatedOn]) VALUES (@Id, @AggregateRootTypeName, @AggregateRootId, @Version, @CreatedOn)";
-        const string modifySql = "UPDATE [{0}] SET [Version] = @Version, [ModifiedOn] = @ModifiedOn WHERE [AggregateRootTypeName] = @AggregateRootTypeName AND [AggregateRootId] = @AggregateRootId AND [Version] = (@Version - 1)";
+        const string getSql = @"SELECT ""Version"" FROM ""{0}"" WHERE ""AggregateRootTypeName"" = @AggregateRootTypeName AND ""AggregateRootId"" = @AggregateRootId";
+        const string createSql = @"INSERT INTO ""{0}"" (""Id"", ""AggregateRootTypeName"", ""AggregateRootId"", ""Version"", ""CreatedOn"") VALUES (@Id, @AggregateRootTypeName, @AggregateRootId, @Version, @CreatedOn)";
+        const string modifySql = @"UPDATE ""{0}"" SET ""Version"" = @Version, ""ModifiedOn"" = @ModifiedOn WHERE ""AggregateRootTypeName"" = @AggregateRootTypeName AND ""AggregateRootId"" = @AggregateRootId AND ""Version"" = (@Version - 1)";
         const string initializeSql = @"
-            IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{0}')
-            BEGIN
-	            EXEC('CREATE SCHEMA [{0}]')
-            END;
-            IF OBJECT_ID(N'[{0}].[{1}]',N'U') IS NULL
-            BEGIN
-                CREATE TABLE [{0}].[{1}](
-	                [Id] [varchar](24) NOT NULL,
-	                [AggregateRootTypeName] [varchar](256) NOT NULL,
-	                [AggregateRootId] [varchar](32) NOT NULL,
-	                [Version] [bigint] NOT NULL,
-	                [CreatedOn] [datetime] NOT NULL,
-	                [ModifiedOn] [datetime] NULL,
-                    CONSTRAINT [PK_{1}] PRIMARY KEY CLUSTERED(
-	                    [Id] ASC
-                    )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-                ) ON [PRIMARY]
-            END";
+            CREATE SCHEMA IF NOT EXISTS ""{0}"";
+            CREATE TABLE IF NOT EXISTS ""{0}"".""{1}""(
+	            ""Id"" VARCHAR(24) PRIMARY KEY NOT NULL,
+	            ""Timestamp"" TIMESTAMP NOT NULL,
+	            ""CommandId"" VARCHAR(24) NOT NULL,
+	            ""AggregateRootTypeName"" VARCHAR(256) NOT NULL,
+	            ""AggregateRootId"" VARCHAR(32) NOT NULL,
+	            ""Version"" BIGINT NOT NULL,
+                ""Events"" VARCHAR(MAX) NOT NULL
+            );";
 
         #endregion
 
         #region Ctors
 
-        public SqlServerEventVersionStore(IStringIdentityGenerator identityGenerator, ILogger<SqlServerEventVersionStore> logger, SqlServerOptions options)
+        public PostgreSqlEventVersionStore(IStringIdentityGenerator identityGenerator, ILogger<PostgreSqlEventVersionStore> logger, PostgreSqlOptions options)
         {
             this.identityGenerator = identityGenerator;
             this.logger = logger;

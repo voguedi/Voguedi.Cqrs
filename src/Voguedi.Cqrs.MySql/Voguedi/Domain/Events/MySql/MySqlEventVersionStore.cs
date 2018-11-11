@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Data.SqlClient;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,45 +7,37 @@ using Microsoft.Extensions.Logging;
 using Voguedi.AsyncExecution;
 using Voguedi.IdentityGeneration;
 using Voguedi.Utilities;
+using MySql.Data.MySqlClient;
 
-namespace Voguedi.Domain.Events.SqlServer
+namespace Voguedi.Domain.Events.MySql
 {
-    class SqlServerEventVersionStore : IEventVersionStore
+    class MySqlEventVersionStore : IEventVersionStore
     {
         #region Private Fields
 
         readonly IStringIdentityGenerator identityGenerator;
         readonly ILogger logger;
-        readonly SqlServerOptions options;
+        readonly MySqlOptions options;
         const string tableName = "EventVersions";
-        const string getSql = "SELECT [Version] FROM [{0}] WHERE [AggregateRootTypeName] = @AggregateRootTypeName AND [AggregateRootId] = @AggregateRootId";
-        const string createSql = "INSERT INTO [{0}] ([Id], [AggregateRootTypeName], [AggregateRootId], [Version], [CreatedOn]) VALUES (@Id, @AggregateRootTypeName, @AggregateRootId, @Version, @CreatedOn)";
-        const string modifySql = "UPDATE [{0}] SET [Version] = @Version, [ModifiedOn] = @ModifiedOn WHERE [AggregateRootTypeName] = @AggregateRootTypeName AND [AggregateRootId] = @AggregateRootId AND [Version] = (@Version - 1)";
+        const string getSql = "SELECT `Version` FROM `{0}` WHERE `AggregateRootTypeName` = @AggregateRootTypeName AND `AggregateRootId` = @AggregateRootId";
+        const string createSql = "INSERT INTO `{0}` (`Id`, `AggregateRootTypeName`, `AggregateRootId`, `Version`, `CreatedOn`) VALUES (@Id, @AggregateRootTypeName, @AggregateRootId, @Version, @CreatedOn)";
+        const string modifySql = "UPDATE `{0}` SET `Version` = @Version, `ModifiedOn` = @ModifiedOn WHERE `AggregateRootTypeName` = @AggregateRootTypeName AND `AggregateRootId` = @AggregateRootId AND `Version` = (@Version - 1)";
         const string initializeSql = @"
-            IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{0}')
-            BEGIN
-	            EXEC('CREATE SCHEMA [{0}]')
-            END;
-            IF OBJECT_ID(N'[{0}].[{1}]',N'U') IS NULL
-            BEGIN
-                CREATE TABLE [{0}].[{1}](
-	                [Id] [varchar](24) NOT NULL,
-	                [AggregateRootTypeName] [varchar](256) NOT NULL,
-	                [AggregateRootId] [varchar](32) NOT NULL,
-	                [Version] [bigint] NOT NULL,
-	                [CreatedOn] [datetime] NOT NULL,
-	                [ModifiedOn] [datetime] NULL,
-                    CONSTRAINT [PK_{1}] PRIMARY KEY CLUSTERED(
-	                    [Id] ASC
-                    )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-                ) ON [PRIMARY]
-            END";
+            CREATE TABLE IF NOT EXISTS `{0}.{1}` (
+                `Id` varchar(24) NOT NULL,
+                `AggregateRootTypeName` varchar(256) NOT NULL,
+                `AggregateRootId` varchar(32) NOT NULL,
+                `Version` bigint NOT NULL,
+                `CreatedOn` datetime NOT NULL,
+                `ModifiedOn` datetime DEFAULT NULL,
+                PRIMARY KEY (`Id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
 
         #endregion
 
         #region Ctors
 
-        public SqlServerEventVersionStore(IStringIdentityGenerator identityGenerator, ILogger<SqlServerEventVersionStore> logger, SqlServerOptions options)
+        public MySqlEventVersionStore(IStringIdentityGenerator identityGenerator, ILogger<MySqlEventVersionStore> logger, MySqlOptions options)
         {
             this.identityGenerator = identityGenerator;
             this.logger = logger;
@@ -75,7 +66,7 @@ namespace Voguedi.Domain.Events.SqlServer
         {
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new MySqlConnection(options.ConnectionString))
                 {
                     await connection.ExecuteAsync(
                         BuildSql(createSql, aggregateRootId),
@@ -102,7 +93,7 @@ namespace Voguedi.Domain.Events.SqlServer
         {
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new MySqlConnection(options.ConnectionString))
                 {
                     await connection.ExecuteAsync(
                         BuildSql(modifySql, aggregateRootId),
@@ -138,7 +129,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new MySqlConnection(options.ConnectionString))
                 {
                     var version = await connection.QueryFirstOrDefaultAsync<long>(
                         BuildSql(getSql, aggregateRootId),
@@ -187,7 +178,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
                 try
                 {
-                    using (var connection = new SqlConnection(options.ConnectionString))
+                    using (var connection = new MySqlConnection(options.ConnectionString))
                         await connection.ExecuteAsync(sql.ToString());
 
                     logger.LogInformation($"已发布事件版本存储器初始化成功！ [Sql = {initializeSql}]");

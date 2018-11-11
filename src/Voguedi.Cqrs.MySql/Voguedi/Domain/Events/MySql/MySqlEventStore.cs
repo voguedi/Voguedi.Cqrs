@@ -1,60 +1,51 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Extensions.Logging;
+using MySql.Data.MySqlClient;
 using Voguedi.AsyncExecution;
 using Voguedi.ObjectSerialization;
 using Voguedi.Utilities;
 
-namespace Voguedi.Domain.Events.SqlServer
+namespace Voguedi.Domain.Events.MySql
 {
-    class SqlServerEventStore : IEventStore
+    class MySqlEventStore : IEventStore
     {
         #region Private Fields
 
         readonly IStringObjectSerializer objectSerializer;
         readonly ILogger logger;
-        readonly SqlServerOptions options;
+        readonly MySqlOptions options;
         const string tableName = "Events";
         const string versionUniqueIndexName = "IX_Events_AggregateRootId_Version";
         const string commandIdUniqueIndexName = "IX_Events_AggregateRootId_CommandId";
-        const string getByCommandIdSql = "SELECT * FROM [{0}] WHERE [AggregateRootId] = @AggregateRootId AND [CommandId] = @CommandId";
-        const string getByVersionSql = "SELECT * FROM [{0}] WHERE [AggregateRootId] = @AggregateRootId AND [Version] = @Version";
-        const string getAllSql = "SELECT * FROM [{0}] WHERE [AggregateRootTypeName] = @AggregateRootTypeName AND [AggregateRootId] = @AggregateRootId AND [Version] >= @MinVersion AND [Version] <= @MaxVersion ORDER BY [Version] ASC";
-        const string saveSql = "INSERT INTO [{0}] ([Id], [Timestamp], [CommandId], [AggregateRootTypeName], [AggregateRootId], [Version], [Events]) VALUES (@Id, @Timestamp, @CommandId, @AggregateRootTypeName, @AggregateRootId, @Version, @Events)";
+        const string getByCommandIdSql = "SELECT * FROM `{0}` WHERE `AggregateRootId` = @AggregateRootId AND `CommandId` = @CommandId";
+        const string getByVersionSql = "SELECT * FROM `{0}` WHERE `AggregateRootId` = @AggregateRootId AND `Version` = @Version";
+        const string getAllSql = "SELECT * FROM `{0}` WHERE `AggregateRootTypeName` = @AggregateRootTypeName AND `AggregateRootId` = @AggregateRootId AND `Version` >= @MinVersion AND `Version` <= @MaxVersion ORDER BY `Version` ASC";
+        const string saveSql = "INSERT INTO `{0}` (`Id`, `Timestamp`, `CommandId`, `AggregateRootTypeName`, `AggregateRootId`, `Version`, `Events`) VALUES (@Id, @Timestamp, @CommandId, @AggregateRootTypeName, @AggregateRootId, @Version, @Events)";
         const string initializeSql = @"
-            IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{0}')
-            BEGIN
-	            EXEC('CREATE SCHEMA [{0}]')
-            END;
-            IF OBJECT_ID(N'[{0}].[{1}]',N'U') IS NULL
-            BEGIN
-                CREATE TABLE [{0}].[{1}](
-	                [Id] [varchar](24) NOT NULL,
-	                [Timestamp] [datetime] NOT NULL,
-	                [CommandId] [varchar](24) NOT NULL,
-	                [AggregateRootTypeName] [varchar](256) NOT NULL,
-	                [AggregateRootId] [varchar](32) NOT NULL,
-	                [Version] [bigint] NOT NULL,
-	                [Events] [varchar](max) NOT NULL,
-                    CONSTRAINT [PK_{1}] PRIMARY KEY CLUSTERED(
-	                    [Id] ASC
-                    )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-                ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY];
-                CREATE UNIQUE INDEX [IX_Events_AggregateRootId_Version]   ON [{0}].[{1}] ([AggregateRootId] ASC, [Version] ASC);
-                CREATE UNIQUE INDEX [IX_Events_AggregateRootId_CommandId] ON [{0}].[{1}] ([AggregateRootId] ASC, [CommandId] ASC)
-            END";
+            CREATE TABLE IF NOT EXISTS `{0}.{1}` (
+                `Id` varchar(24) NOT NULL,
+                `Timestamp` datetime NOT NULL,
+                `CommandId` varchar(36) NOT NULL,
+                `AggregateRootTypeName` varchar(256) NOT NULL,
+                `AggregateRootId` varchar(32) NOT NULL,
+                `Version` bigint NOT NULL,
+                `Events` varchar(4000) NOT NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `IX_Events_AggregateRootId_Version` (`AggregateRootId`, `Version`),
+                UNIQUE KEY `IX_Events_AggregateRootId_CommandId` (`AggregateRootId`, `CommandId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
 
         #endregion
 
         #region Ctors
 
-        public SqlServerEventStore(IStringObjectSerializer objectSerializer, ILogger<SqlServerEventStore> logger, SqlServerOptions options)
+        public MySqlEventStore(IStringObjectSerializer objectSerializer, ILogger<MySqlEventStore> logger, MySqlOptions options)
         {
             this.objectSerializer = objectSerializer;
             this.logger = logger;
@@ -131,7 +122,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new MySqlConnection(options.ConnectionString))
                 {
                     var descriptor = await connection.QueryFirstOrDefaultAsync<EventStreamDescriptor>(
                         BuildSql(getByCommandIdSql, aggregateRootId),
@@ -165,7 +156,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new MySqlConnection(options.ConnectionString))
                 {
                     var descriptor = await connection.QueryFirstOrDefaultAsync<EventStreamDescriptor>(
                         BuildSql(getByVersionSql, aggregateRootId),
@@ -209,7 +200,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new MySqlConnection(options.ConnectionString))
                 {
                     var descriptors = await connection.QueryAsync<EventStreamDescriptor>(
                         BuildSql(getAllSql, aggregateRootId),
@@ -240,21 +231,21 @@ namespace Voguedi.Domain.Events.SqlServer
 
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new MySqlConnection(options.ConnectionString))
                 {
                     await connection.ExecuteAsync(BuildSql(saveSql, stream.AggregateRootId), ToStreamDescriptor(stream));
                     logger.LogInformation($"事件存储成功！ {stream}");
                     return AsyncExecutedResult<EventStreamSavedResult>.Success(EventStreamSavedResult.Success);
                 }
             }
-            catch (SqlException ex)
+            catch (MySqlException ex)
             {
-                if (ex.Number == 2601 && ex.Message.Contains(versionUniqueIndexName))
+                if (ex.Number == 1062 && ex.Message.Contains(versionUniqueIndexName))
                 {
                     logger.LogWarning(ex, $"事件存储失败，存在相同版本！ {stream}");
                     return AsyncExecutedResult<EventStreamSavedResult>.Success(EventStreamSavedResult.DuplicatedEvent);
                 }
-                else if (ex.Number == 2601 && ex.Message.Contains(commandIdUniqueIndexName))
+                else if (ex.Number == 1062 && ex.Message.Contains(commandIdUniqueIndexName))
                 {
                     logger.LogWarning(ex, $"事件存储失败，存在相同命令！ {stream}");
                     return AsyncExecutedResult<EventStreamSavedResult>.Success(EventStreamSavedResult.DuplicatedCommand);
@@ -286,7 +277,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
                 try
                 {
-                    using (var connection = new SqlConnection(options.ConnectionString))
+                    using (var connection = new MySqlConnection(options.ConnectionString))
                         await connection.ExecuteAsync(sql.ToString());
 
                     logger.LogInformation($"事件存储器初始化成功！ [Sql = {initializeSql}]");

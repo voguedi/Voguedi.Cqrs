@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -10,51 +9,40 @@ using Microsoft.Extensions.Logging;
 using Voguedi.AsyncExecution;
 using Voguedi.ObjectSerialization;
 using Voguedi.Utilities;
+using Npgsql;
 
-namespace Voguedi.Domain.Events.SqlServer
+namespace Voguedi.Domain.Events.PostgreSql
 {
-    class SqlServerEventStore : IEventStore
+    class PostgreSqlEventStore : IEventStore
     {
         #region Private Fields
 
         readonly IStringObjectSerializer objectSerializer;
         readonly ILogger logger;
-        readonly SqlServerOptions options;
+        readonly PostgreSqlOptions options;
         const string tableName = "Events";
         const string versionUniqueIndexName = "IX_Events_AggregateRootId_Version";
         const string commandIdUniqueIndexName = "IX_Events_AggregateRootId_CommandId";
-        const string getByCommandIdSql = "SELECT * FROM [{0}] WHERE [AggregateRootId] = @AggregateRootId AND [CommandId] = @CommandId";
-        const string getByVersionSql = "SELECT * FROM [{0}] WHERE [AggregateRootId] = @AggregateRootId AND [Version] = @Version";
-        const string getAllSql = "SELECT * FROM [{0}] WHERE [AggregateRootTypeName] = @AggregateRootTypeName AND [AggregateRootId] = @AggregateRootId AND [Version] >= @MinVersion AND [Version] <= @MaxVersion ORDER BY [Version] ASC";
-        const string saveSql = "INSERT INTO [{0}] ([Id], [Timestamp], [CommandId], [AggregateRootTypeName], [AggregateRootId], [Version], [Events]) VALUES (@Id, @Timestamp, @CommandId, @AggregateRootTypeName, @AggregateRootId, @Version, @Events)";
+        const string getByCommandIdSql = @"SELECT * FROM ""{0}"" WHERE ""AggregateRootId"" = @AggregateRootId AND ""CommandId"" = @CommandId";
+        const string getByVersionSql = @"SELECT * FROM ""{0}"" WHERE ""AggregateRootId"" = @AggregateRootId AND ""Version"" = @Version";
+        const string getAllSql = @"SELECT * FROM ""{0}"" WHERE ""AggregateRootTypeName"" = @AggregateRootTypeName AND ""AggregateRootId"" = @AggregateRootId AND ""Version"" >= @MinVersion AND ""Version"" <= @MaxVersion ORDER BY ""Version"" ASC";
+        const string saveSql = @"INSERT INTO ""{0}"" (""Id"", ""Timestamp"", ""CommandId"", ""AggregateRootTypeName"", ""AggregateRootId"", ""Version"", ""Events"") VALUES (@Id, @Timestamp, @CommandId, @AggregateRootTypeName, @AggregateRootId, @Version, @Events)";
         const string initializeSql = @"
-            IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{0}')
-            BEGIN
-	            EXEC('CREATE SCHEMA [{0}]')
-            END;
-            IF OBJECT_ID(N'[{0}].[{1}]',N'U') IS NULL
-            BEGIN
-                CREATE TABLE [{0}].[{1}](
-	                [Id] [varchar](24) NOT NULL,
-	                [Timestamp] [datetime] NOT NULL,
-	                [CommandId] [varchar](24) NOT NULL,
-	                [AggregateRootTypeName] [varchar](256) NOT NULL,
-	                [AggregateRootId] [varchar](32) NOT NULL,
-	                [Version] [bigint] NOT NULL,
-	                [Events] [varchar](max) NOT NULL,
-                    CONSTRAINT [PK_{1}] PRIMARY KEY CLUSTERED(
-	                    [Id] ASC
-                    )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-                ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY];
-                CREATE UNIQUE INDEX [IX_Events_AggregateRootId_Version]   ON [{0}].[{1}] ([AggregateRootId] ASC, [Version] ASC);
-                CREATE UNIQUE INDEX [IX_Events_AggregateRootId_CommandId] ON [{0}].[{1}] ([AggregateRootId] ASC, [CommandId] ASC)
-            END";
+            CREATE SCHEMA IF NOT EXISTS ""{0}"";
+            CREATE TABLE IF NOT EXISTS ""{0}"".""{1}""(
+	            ""Id"" VARCHAR(24) PRIMARY KEY NOT NULL,
+	            ""AggregateRootTypeName"" VARCHAR(256) NOT NULL,
+	            ""AggregateRootId"" VARCHAR(32) NOT NULL,
+	            ""Version"" BIGINT NOT NULL,
+	            ""CreatedOn"" TIMESTAMP NOT NULL,
+	            ""ModifiedOn"" TIMESTAMP NULL,
+            );";
 
         #endregion
 
         #region Ctors
 
-        public SqlServerEventStore(IStringObjectSerializer objectSerializer, ILogger<SqlServerEventStore> logger, SqlServerOptions options)
+        public PostgreSqlEventStore(IStringObjectSerializer objectSerializer, ILogger<PostgreSqlEventStore> logger, PostgreSqlOptions options)
         {
             this.objectSerializer = objectSerializer;
             this.logger = logger;
@@ -131,7 +119,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new NpgsqlConnection(options.ConnectionString))
                 {
                     var descriptor = await connection.QueryFirstOrDefaultAsync<EventStreamDescriptor>(
                         BuildSql(getByCommandIdSql, aggregateRootId),
@@ -165,7 +153,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new NpgsqlConnection(options.ConnectionString))
                 {
                     var descriptor = await connection.QueryFirstOrDefaultAsync<EventStreamDescriptor>(
                         BuildSql(getByVersionSql, aggregateRootId),
@@ -209,7 +197,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new NpgsqlConnection(options.ConnectionString))
                 {
                     var descriptors = await connection.QueryAsync<EventStreamDescriptor>(
                         BuildSql(getAllSql, aggregateRootId),
@@ -240,21 +228,21 @@ namespace Voguedi.Domain.Events.SqlServer
 
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new NpgsqlConnection(options.ConnectionString))
                 {
                     await connection.ExecuteAsync(BuildSql(saveSql, stream.AggregateRootId), ToStreamDescriptor(stream));
                     logger.LogInformation($"事件存储成功！ {stream}");
                     return AsyncExecutedResult<EventStreamSavedResult>.Success(EventStreamSavedResult.Success);
                 }
             }
-            catch (SqlException ex)
+            catch (NpgsqlException ex)
             {
-                if (ex.Number == 2601 && ex.Message.Contains(versionUniqueIndexName))
+                if (ex.ErrorCode == 2601 && ex.Message.Contains(versionUniqueIndexName))
                 {
                     logger.LogWarning(ex, $"事件存储失败，存在相同版本！ {stream}");
                     return AsyncExecutedResult<EventStreamSavedResult>.Success(EventStreamSavedResult.DuplicatedEvent);
                 }
-                else if (ex.Number == 2601 && ex.Message.Contains(commandIdUniqueIndexName))
+                else if (ex.ErrorCode == 2601 && ex.Message.Contains(commandIdUniqueIndexName))
                 {
                     logger.LogWarning(ex, $"事件存储失败，存在相同命令！ {stream}");
                     return AsyncExecutedResult<EventStreamSavedResult>.Success(EventStreamSavedResult.DuplicatedCommand);
@@ -286,7 +274,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
                 try
                 {
-                    using (var connection = new SqlConnection(options.ConnectionString))
+                    using (var connection = new NpgsqlConnection(options.ConnectionString))
                         await connection.ExecuteAsync(sql.ToString());
 
                     logger.LogInformation($"事件存储器初始化成功！ [Sql = {initializeSql}]");

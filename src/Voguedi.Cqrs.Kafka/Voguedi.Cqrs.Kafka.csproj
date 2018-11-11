@@ -3,12 +3,12 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace />
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>voguedi</Authors>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Voguedi.Utils.RabbitMQ" Version="1.0.8" />
+    <PackageReference Include="Voguedi.Utils.Kafka" Version="1.0.6" />
   </ItemGroup>
 
   <ItemGroup>
