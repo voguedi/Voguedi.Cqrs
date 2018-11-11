@@ -4,14 +4,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Extensions.Logging;
+using MySql.Data.MySqlClient;
 using Voguedi.AsyncExecution;
 using Voguedi.IdentityGeneration;
+using Voguedi.Messaging;
 using Voguedi.Utilities;
-using MySql.Data.MySqlClient;
 
 namespace Voguedi.Domain.Events.MySql
 {
-    class MySqlEventVersionStore : IEventVersionStore
+    class MySqlEventVersionStore : IEventVersionStore, IMessageStore
     {
         #region Private Fields
 
@@ -161,6 +162,10 @@ namespace Voguedi.Domain.Events.MySql
 
             return ModifyAsync(aggregateRootTypeName, aggregateRootId, version);
         }
+
+        #endregion
+
+        #region IMessageStore
 
         public async Task InitializeAsync(CancellationToken cancellationToken)
         {

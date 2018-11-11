@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Voguedi.Utils.MongoDB" Version="1.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Voguedi.Cqrs\Voguedi.Cqrs.csproj" />
   </ItemGroup>
 

@@ -1,11 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Voguedi.AsyncExecution;
-using Voguedi.Messaging;
 
 namespace Voguedi.Domain.Events
 {
-    public interface IEventStore : IMessageStore
+    public interface IEventStore
     {
         #region Methods
 

@@ -6,14 +6,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using Voguedi.AsyncExecution;
+using Voguedi.Messaging;
 using Voguedi.ObjectSerialization;
 using Voguedi.Utilities;
-using Npgsql;
 
 namespace Voguedi.Domain.Events.PostgreSql
 {
-    class PostgreSqlEventStore : IEventStore
+    class PostgreSqlEventStore : IEventStore, IMessageStore
     {
         #region Private Fields
 
@@ -257,6 +258,10 @@ namespace Voguedi.Domain.Events.PostgreSql
                 return AsyncExecutedResult<EventStreamSavedResult>.Failed(ex, EventStreamSavedResult.Failed);
             }
         }
+
+        #endregion
+
+        #region IMessageStore
 
         public async Task InitializeAsync(CancellationToken cancellationToken)
         {
