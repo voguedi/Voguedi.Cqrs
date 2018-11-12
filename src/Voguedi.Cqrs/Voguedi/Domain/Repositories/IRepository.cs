@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Voguedi.Domain.AggregateRoots;
-using Voguedi.AsyncExecution;
 
 namespace Voguedi.Domain.Repositories
 {
@@ -9,7 +8,7 @@ namespace Voguedi.Domain.Repositories
     {
         #region Methods
 
-        Task<AsyncExecutedResult<IEventSourcedAggregateRoot>> GetAsync(Type aggregateRootType, string aggregateRootId);
+        Task<IEventSourcedAggregateRoot> GetAsync(Type aggregateRootType, string aggregateRootId);
 
         #endregion
     }

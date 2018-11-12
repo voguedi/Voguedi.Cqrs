@@ -8,13 +8,13 @@ using Dapper;
 using Microsoft.Extensions.Logging;
 using MySql.Data.MySqlClient;
 using Voguedi.AsyncExecution;
-using Voguedi.Messaging;
 using Voguedi.ObjectSerialization;
+using Voguedi.Stores;
 using Voguedi.Utilities;
 
 namespace Voguedi.Domain.Events.MySql
 {
-    class MySqlEventStore : IEventStore, IMessageStore
+    class MySqlEventStore : IEventStore, IStore
     {
         #region Private Fields
 
@@ -264,7 +264,7 @@ namespace Voguedi.Domain.Events.MySql
 
         #endregion
 
-        #region IMessageStore
+        #region IStore
         
         public async Task InitializeAsync(CancellationToken cancellationToken)
         {

@@ -7,12 +7,12 @@ using Microsoft.Extensions.Logging;
 using MySql.Data.MySqlClient;
 using Voguedi.AsyncExecution;
 using Voguedi.IdentityGeneration;
-using Voguedi.Messaging;
+using Voguedi.Stores;
 using Voguedi.Utilities;
 
 namespace Voguedi.Domain.Events.MySql
 {
-    class MySqlEventVersionStore : IEventVersionStore, IMessageStore
+    class MySqlEventVersionStore : IEventVersionStore, IStore
     {
         #region Private Fields
 
@@ -165,7 +165,7 @@ namespace Voguedi.Domain.Events.MySql
 
         #endregion
 
-        #region IMessageStore
+        #region IStore
 
         public async Task InitializeAsync(CancellationToken cancellationToken)
         {

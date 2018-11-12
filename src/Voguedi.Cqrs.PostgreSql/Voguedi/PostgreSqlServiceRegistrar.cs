@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Voguedi.Domain.Events;
 using Voguedi.Domain.Events.PostgreSql;
-using Voguedi.Messaging;
+using Voguedi.Stores;
 
 namespace Voguedi
 {
@@ -30,8 +30,8 @@ namespace Voguedi
             services.AddSingleton(options);
             services.TryAddSingleton<IEventStore, PostgreSqlEventStore>();
             services.TryAddSingleton<IEventVersionStore, PostgreSqlEventVersionStore>();
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageStore, PostgreSqlEventStore>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageStore, PostgreSqlEventVersionStore>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IStore, PostgreSqlEventStore>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IStore, PostgreSqlEventVersionStore>());
         }
 
         #endregion

@@ -25,7 +25,9 @@ namespace Voguedi
 
         public int DefaultTopicQueueCount { get; set; } = 1;
 
-        public int MemoryQueueActiveExpiration { get; set; } = 5000;
+        public int AggregateRootExpiration { get; set; } = 3 * 24 * 60 * 60 * 1000;
+
+        public int MemoryQueueExpiration { get; set; } = 5 * 1000;
 
         #endregion
 

@@ -3,7 +3,6 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Voguedi.AsyncExecution;
 using Voguedi.Domain.AggregateRoots;
 using Voguedi.Domain.Events;
 
@@ -48,7 +47,7 @@ namespace Voguedi.Domain.Repositories
 
         #region IRepository
 
-        public async Task<AsyncExecutedResult<IEventSourcedAggregateRoot>> GetAsync(Type aggregateRootType, string aggregateRootId)
+        async Task<IEventSourcedAggregateRoot> IRepository.GetAsync(Type aggregateRootType, string aggregateRootId)
         {
             if (aggregateRootType == null)
                 throw new ArgumentNullException(nameof(aggregateRootType));
@@ -56,35 +55,28 @@ namespace Voguedi.Domain.Repositories
             if (string.IsNullOrWhiteSpace(aggregateRootId))
                 throw new ArgumentNullException(nameof(aggregateRootId));
 
-            var aggregateRoot = Build(aggregateRootType, aggregateRootId);
+            var result = await eventStore.GetAllAsync(aggregateRootType.FullName, aggregateRootId);
 
-            if (aggregateRoot != null)
+            if (result.Succeeded)
             {
-                var result = await eventStore.GetAllAsync(aggregateRootType.FullName, aggregateRootId);
+                var eventStream = result.Data;
 
-                if (result.Succeeded)
+                try
                 {
-                    var eventStream = result.Data;
-
-                    try
-                    {
-                        aggregateRoot.ReplayEvents(eventStream);
-                        logger.LogInformation($"事件溯源重建聚合根成功！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}, EventStream = {eventStream}]");
-                        return AsyncExecutedResult<IEventSourcedAggregateRoot>.Success(aggregateRoot);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, $"事件溯源重建聚合根失败！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}, EventStream = {eventStream}]");
-                        return AsyncExecutedResult<IEventSourcedAggregateRoot>.Failed(ex);
-                    }
+                    var aggregateRoot = Build(aggregateRootType, aggregateRootId);
+                    aggregateRoot.ReplayEvents(eventStream);
+                    logger.LogInformation($"事件溯源重建聚合根成功！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}, EventStream = {eventStream}]");
+                    return aggregateRoot;
                 }
-
-                logger.LogError(result.Exception, $"事件溯源重建聚合根失败，未获取任何已存储的事件！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
-                return AsyncExecutedResult<IEventSourcedAggregateRoot>.Success(null);
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, $"事件溯源重建聚合根失败！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}, EventStream = {eventStream}]");
+                    return null;
+                }
             }
 
-            logger.LogError($"事件溯源重建聚合根失败！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
-            return AsyncExecutedResult<IEventSourcedAggregateRoot>.Success(null);
+            logger.LogError(result.Exception, $"事件溯源重建聚合根失败，未获取任何已存储的事件！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
+            return null;
         }
 
         #endregion

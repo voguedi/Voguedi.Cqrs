@@ -1,9 +1,9 @@
 ﻿using System.Threading.Tasks;
-using Voguedi.Messaging;
+using Voguedi.Services;
 
 namespace Voguedi.Domain.Events
 {
-    public interface IEventCommitter : IMessageService
+    public interface IEventCommitter : IService
     {
         #region Methods
 

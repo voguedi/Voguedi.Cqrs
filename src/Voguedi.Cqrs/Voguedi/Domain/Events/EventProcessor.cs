@@ -15,7 +15,7 @@ namespace Voguedi.Domain.Events
         readonly IProcessingEventQueueFactory queueFactory;
         readonly IBackgroundWorker backgroundWorker;
         readonly ILogger logger;
-        readonly int queueActiveExpiration;
+        readonly int expiration;
         readonly string backgroundWorkerKey;
         readonly ConcurrentDictionary<string, IProcessingEventQueue> queueMapping = new ConcurrentDictionary<string, IProcessingEventQueue>();
         bool disposed;
@@ -25,13 +25,18 @@ namespace Voguedi.Domain.Events
 
         #region Ctors
 
-        public EventProcessor(IProcessingEventQueueFactory queueFactory, IBackgroundWorker backgroundWorker, ILogger<EventProcessor> logger, VoguediOptions options)
+        public EventProcessor(
+            IProcessingEventQueueFactory queueFactory,
+            IBackgroundWorker backgroundWorker,
+            IStringIdentityGenerator identityGenerator,
+            ILogger<EventProcessor> logger,
+            VoguediOptions options)
         {
             this.queueFactory = queueFactory;
             this.backgroundWorker = backgroundWorker;
             this.logger = logger;
-            queueActiveExpiration = options.MemoryQueueActiveExpiration;
-            backgroundWorkerKey = $"{nameof(EventProcessor)}-{StringIdentityGenerator.Instance.Generate()}";
+            expiration = options.MemoryQueueExpiration;
+            backgroundWorkerKey = $"{nameof(EventProcessor)}_{identityGenerator.Generate()}";
         }
 
         #endregion
@@ -53,20 +58,20 @@ namespace Voguedi.Domain.Events
 
         #region Private Methods
 
-        void ClearInactiveQueue()
+        void Clear()
         {
             var queue = new List<KeyValuePair<string, IProcessingEventQueue>>();
 
             foreach (var item in queueMapping)
             {
-                if (item.Value.IsInactive(queueActiveExpiration))
+                if (item.Value.IsInactive(expiration))
                     queue.Add(item);
             }
 
             foreach (var item in queue)
             {
                 if (queueMapping.TryRemove(item.Key))
-                    logger.LogInformation($"不活跃命令处理队列清理成功！ [AggregateRootId = {item.Key}, QueueActiveExpiration = {queueActiveExpiration}]");
+                    logger.LogInformation($"不活跃命令处理队列清理成功！ [AggregateRootId = {item.Key}, QueueActiveExpiration = {expiration}]");
             }
         }
 
@@ -89,7 +94,7 @@ namespace Voguedi.Domain.Events
         {
             if (!started)
             {
-                backgroundWorker.Start(backgroundWorkerKey, ClearInactiveQueue, queueActiveExpiration, queueActiveExpiration);
+                backgroundWorker.Start(backgroundWorkerKey, Clear, expiration, expiration);
                 started = true;
             }
         }

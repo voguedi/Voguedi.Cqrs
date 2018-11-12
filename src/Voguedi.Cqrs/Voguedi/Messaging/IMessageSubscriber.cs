@@ -1,4 +1,6 @@
-﻿namespace Voguedi.Messaging
+﻿using Voguedi.Services;
+
+namespace Voguedi.Messaging
 {
-    public interface IMessageSubscriber : IMessageService { }
+    public interface IMessageSubscriber : IService { }
 }

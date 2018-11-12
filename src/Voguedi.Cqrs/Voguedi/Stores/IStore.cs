@@ -1,9 +1,9 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 
-namespace Voguedi.Messaging
+namespace Voguedi.Stores
 {
-    public interface IMessageStore
+    public interface IStore
     {
         #region Methods
 

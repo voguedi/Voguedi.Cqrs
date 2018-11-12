@@ -7,8 +7,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{62FEF381-BCA
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Voguedi.Cqrs", "src\Voguedi.Cqrs\Voguedi.Cqrs.csproj", "{2D6294B5-40B5-4987-9383-21BE4D9FB491}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Voguedi.Cqrs.MemoryCache", "src\Voguedi.Cqrs.MemoryCache\Voguedi.Cqrs.MemoryCache.csproj", "{EE57254B-CBCD-4000-9F50-18A234B548A3}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Voguedi.Cqrs.SqlServer", "src\Voguedi.Cqrs.SqlServer\Voguedi.Cqrs.SqlServer.csproj", "{1ED14ACB-0792-4F4A-A829-BA5EB742FCFF}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Voguedi.Cqrs.RabbitMQ", "src\Voguedi.Cqrs.RabbitMQ\Voguedi.Cqrs.RabbitMQ.csproj", "{3F8B93B1-CE70-44DE-BE81-81BF9DE223E3}"
@@ -23,9 +21,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Voguedi.Cqrs.Kafka", "src\V
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Voguedi.Cqrs.MySql", "src\Voguedi.Cqrs.MySql\Voguedi.Cqrs.MySql.csproj", "{229A43AC-B181-4F05-AA7C-799478456896}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Voguedi.Cqrs.PostgreSql", "src\Voguedi.Cqrs.PostgreSql\Voguedi.Cqrs.PostgreSql.csproj", "{435F52C7-E66B-4FF4-86A2-E046732448F7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Voguedi.Cqrs.PostgreSql", "src\Voguedi.Cqrs.PostgreSql\Voguedi.Cqrs.PostgreSql.csproj", "{435F52C7-E66B-4FF4-86A2-E046732448F7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Voguedi.Cqrs.MongoDB", "src\Voguedi.Cqrs.MongoDB\Voguedi.Cqrs.MongoDB.csproj", "{3E379886-0A1E-47AD-A50B-DD700B1F0D1C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Voguedi.Cqrs.MongoDB", "src\Voguedi.Cqrs.MongoDB\Voguedi.Cqrs.MongoDB.csproj", "{3E379886-0A1E-47AD-A50B-DD700B1F0D1C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -37,10 +35,6 @@ Global
 		{2D6294B5-40B5-4987-9383-21BE4D9FB491}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2D6294B5-40B5-4987-9383-21BE4D9FB491}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2D6294B5-40B5-4987-9383-21BE4D9FB491}.Release|Any CPU.Build.0 = Release|Any CPU
-		{EE57254B-CBCD-4000-9F50-18A234B548A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{EE57254B-CBCD-4000-9F50-18A234B548A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{EE57254B-CBCD-4000-9F50-18A234B548A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{EE57254B-CBCD-4000-9F50-18A234B548A3}.Release|Any CPU.Build.0 = Release|Any CPU
 		{1ED14ACB-0792-4F4A-A829-BA5EB742FCFF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{1ED14ACB-0792-4F4A-A829-BA5EB742FCFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1ED14ACB-0792-4F4A-A829-BA5EB742FCFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -79,7 +73,6 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{2D6294B5-40B5-4987-9383-21BE4D9FB491} = {62FEF381-BCA5-4C29-91BA-BE6186421B12}
-		{EE57254B-CBCD-4000-9F50-18A234B548A3} = {62FEF381-BCA5-4C29-91BA-BE6186421B12}
 		{1ED14ACB-0792-4F4A-A829-BA5EB742FCFF} = {62FEF381-BCA5-4C29-91BA-BE6186421B12}
 		{3F8B93B1-CE70-44DE-BE81-81BF9DE223E3} = {62FEF381-BCA5-4C29-91BA-BE6186421B12}
 		{33A9D7BB-2DD0-4FBA-9423-E721B23C0BEE} = {62FEF381-BCA5-4C29-91BA-BE6186421B12}

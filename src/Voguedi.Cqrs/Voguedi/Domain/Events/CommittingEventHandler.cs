@@ -75,33 +75,10 @@ namespace Voguedi.Domain.Events
             }
         }
 
-        async Task SetAggregateRootCacheAsync(CommittingEvent committingEvent)
+        Task SetAggregateRootCacheAsync(CommittingEvent committingEvent)
         {
             var aggregateRoot = committingEvent.AggregateRoot;
-            var aggregateRootType = aggregateRoot.GetAggregateRootType();
-            var aggregateRootId = aggregateRoot.GetAggregateRootId();
-            var repositoryResult = await repository.GetAsync(aggregateRootType, aggregateRootId);
-
-            if (repositoryResult.Succeeded)
-            {
-                var lastAggregateRoot = repositoryResult.Data;
-
-                if (lastAggregateRoot != null)
-                {
-                    logger.LogInformation($"事件溯源重建聚合根成功！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
-
-                    var cacheResult = await cache.SetAsync(lastAggregateRoot);
-
-                    if (cacheResult.Succeeded)
-                        logger.LogInformation($"更新聚合根缓存失败！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
-                    else
-                        logger.LogError(cacheResult.Exception, $"更新聚合根缓存失败！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
-                }
-                else
-                    logger.LogError($"事件溯源未重建任何聚合根最新状态！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
-            }
-            else
-                logger.LogError(repositoryResult.Exception, $"事件溯源重建聚合根失败！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
+            return cache.RefreshAsync(aggregateRoot.GetAggregateRootType(), aggregateRoot.GetAggregateRootId());
         }
 
         async Task TryGetAndPublishStreamAsync(CommittingEvent committingEvent)

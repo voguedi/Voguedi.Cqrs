@@ -8,13 +8,13 @@ using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Extensions.Logging;
 using Voguedi.AsyncExecution;
-using Voguedi.Messaging;
 using Voguedi.ObjectSerialization;
+using Voguedi.Stores;
 using Voguedi.Utilities;
 
 namespace Voguedi.Domain.Events.SqlServer
 {
-    class SqlServerEventStore : IEventStore, IMessageStore
+    class SqlServerEventStore : IEventStore, IStore
     {
         #region Private Fields
 
@@ -273,7 +273,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
         #endregion
 
-        #region IMessageStore
+        #region IStore
 
         public async Task InitializeAsync(CancellationToken cancellationToken)
         {

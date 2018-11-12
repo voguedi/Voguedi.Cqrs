@@ -16,7 +16,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Voguedi.Cqrs.Json\Voguedi.Cqrs.Json.csproj" />
-    <ProjectReference Include="..\..\src\Voguedi.Cqrs.MemoryCache\Voguedi.Cqrs.MemoryCache.csproj" />
     <ProjectReference Include="..\..\src\Voguedi.Cqrs.RabbitMQ\Voguedi.Cqrs.RabbitMQ.csproj" />
     <ProjectReference Include="..\..\src\Voguedi.Cqrs.SqlServer\Voguedi.Cqrs.SqlServer.csproj" />
     <ProjectReference Include="..\..\src\Voguedi.Cqrs\Voguedi.Cqrs.csproj" />

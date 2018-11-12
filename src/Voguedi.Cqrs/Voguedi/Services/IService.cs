@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace Voguedi.Messaging
+namespace Voguedi.Services
 {
-    public interface IMessageService : IDisposable
+    public interface IService : IDisposable
     {
         #region Methods
 

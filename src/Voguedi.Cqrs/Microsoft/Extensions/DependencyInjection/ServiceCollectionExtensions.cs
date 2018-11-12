@@ -6,10 +6,12 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Voguedi;
 using Voguedi.Commands;
+using Voguedi.Domain.Caching;
 using Voguedi.Domain.Events;
 using Voguedi.Domain.Repositories;
 using Voguedi.Messaging;
 using Voguedi.Reflection;
+using Voguedi.Services;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -59,7 +61,6 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IProcessingCommandQueueFactory, ProcessingCommandQueueFactory>();
             AddCommandHandler(services);
 
-            services.TryAddSingleton<IRepository, EventSourcedRepository>();
             services.TryAddSingleton<ICommittingEventHandler, CommittingEventHandler>();
             services.TryAddSingleton<ICommittingEventQueueFactory, CommittingEventQueueFactory>();
             services.TryAddSingleton<IEventCommitter, EventCommitter>();
@@ -71,11 +72,15 @@ namespace Microsoft.Extensions.DependencyInjection
             AddEventHandler(services);
 
             services.TryAddSingleton<IMessageQueueTopicProvider, MessageQueueTopicProvider>();
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, CommandProcessor>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, CommandSubscriber>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, EventCommitter>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, EventProcessor>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IMessageService, EventSubscriber>());
+            
+            services.AddSingleton<ICache, MemoryCache>();
+            services.AddSingleton<IRepository, EventSourcedRepository>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IService, MemoryCache>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IService, CommandProcessor>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IService, CommandSubscriber>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IService, EventCommitter>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IService, EventProcessor>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IService, EventSubscriber>());
 
             services.TryAddSingleton<IBootstrapper, Bootstrapper>();
             services.AddTransient<IStartupFilter, StartupFilter>();

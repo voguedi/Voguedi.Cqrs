@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Voguedi.AsyncExecution;
 using Voguedi.Domain.AggregateRoots;
 
 namespace Voguedi.Domain.Caching
@@ -9,9 +8,11 @@ namespace Voguedi.Domain.Caching
     {
         #region Methods
 
-        Task<AsyncExecutedResult<IEventSourcedAggregateRoot>> GetAsync(Type aggregateRootType, string aggregateRootId);
+        Task<IEventSourcedAggregateRoot> GetAsync(Type aggregateRootType, string aggregateRootId);
 
-        Task<AsyncExecutedResult> SetAsync(IEventSourcedAggregateRoot aggregateRoot);
+        Task SetAsync(IEventSourcedAggregateRoot aggregateRoot);
+
+        Task RefreshAsync(Type aggregateRootType, string aggregateRootId);
 
         #endregion
     }

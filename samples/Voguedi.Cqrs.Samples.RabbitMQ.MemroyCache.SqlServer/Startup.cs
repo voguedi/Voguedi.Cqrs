@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -35,7 +34,6 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer
                     o.HostName = "localhost";
                     o.ExchangeName = "Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer";
                 });
-                s.UseMemoryCache(TimeSpan.FromMinutes(5));
                 s.UseSqlServer(@"Server=DESKTOP-GQ9I89D\MSSQLSERVER16;Database=Test;User Id=sa;Password=123;");
                 s.UseJson();
             });

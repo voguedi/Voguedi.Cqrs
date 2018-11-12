@@ -1,8 +1,8 @@
-﻿using Voguedi.Messaging;
+﻿using Voguedi.Services;
 
 namespace Voguedi.Commands
 {
-    public interface ICommandProcessor : IMessageService
+    public interface ICommandProcessor : IService
     {
         #region Methods
 

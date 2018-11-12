@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 using Voguedi.Messaging;
+using Voguedi.Services;
+using Voguedi.Stores;
 
 namespace Voguedi
 {
@@ -12,8 +14,8 @@ namespace Voguedi
     {
         #region Private Fields
 
-        readonly IEnumerable<IMessageService> messageServices;
-        readonly IEnumerable<IMessageStore> messageStores;
+        readonly IEnumerable<IService> services;
+        readonly IEnumerable<IStore> stores;
         readonly IApplicationLifetime applicationLifetime;
         readonly ILogger logger;
         readonly CancellationTokenSource cancellationTokenSource;
@@ -25,13 +27,13 @@ namespace Voguedi
         #region Ctors
 
         public Bootstrapper(
-            IEnumerable<IMessageService> messageServices,
-            IEnumerable<IMessageStore> messageStores,
+            IEnumerable<IService> services,
+            IEnumerable<IStore> stores,
             IApplicationLifetime applicationLifetime,
             ILogger<Bootstrapper> logger)
         {
-            this.messageServices = messageServices;
-            this.messageStores = messageStores;
+            this.services = services;
+            this.stores = stores;
             this.applicationLifetime = applicationLifetime;
             this.logger = logger;
             cancellationTokenSource = new CancellationTokenSource();
@@ -57,7 +59,7 @@ namespace Voguedi
 
         async Task DoBootstrapperAsync()
         {
-            foreach (var store in messageStores)
+            foreach (var store in stores)
                 await store.InitializeAsync(cancellationTokenSource.Token);
 
             if (!cancellationTokenSource.IsCancellationRequested)
@@ -65,13 +67,13 @@ namespace Voguedi
                 applicationLifetime.ApplicationStopping.Register(
                     () =>
                     {
-                        foreach (var service in messageServices)
+                        foreach (var service in services)
                             service.Dispose();
                     });
 
                 if (!cancellationTokenSource.IsCancellationRequested)
                 {
-                    foreach (var service in messageServices)
+                    foreach (var service in services)
                     {
                         try
                         {
@@ -79,7 +81,7 @@ namespace Voguedi
                         }
                         catch (Exception ex)
                         {
-                            logger.LogError(ex, $"消息相关服务启动异常！");
+                            logger.LogError(ex, $"相关服务启动异常！");
                         }
                     }
 

@@ -7,12 +7,12 @@ using Dapper;
 using Microsoft.Extensions.Logging;
 using Voguedi.AsyncExecution;
 using Voguedi.IdentityGeneration;
-using Voguedi.Messaging;
+using Voguedi.Stores;
 using Voguedi.Utilities;
 
 namespace Voguedi.Domain.Events.PostgreSql
 {
-    class PostgreSqlEventVersionStore : IEventVersionStore, IMessageStore
+    class PostgreSqlEventVersionStore : IEventVersionStore, IStore
     {
         #region Private Fields
 
@@ -166,7 +166,7 @@ namespace Voguedi.Domain.Events.PostgreSql
 
         #endregion
 
-        #region IMessageStore
+        #region IStore
 
         public async Task InitializeAsync(CancellationToken cancellationToken)
         {
