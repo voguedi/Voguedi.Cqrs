@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,17 +46,16 @@ namespace Voguedi.Messaging
         {
             var attributes = new List<MessageSubscriberAttribute>();
             var attribute = default(MessageSubscriberAttribute);
+            var baseType = GetSubscriberBaseType();
 
             foreach (var type in typeFinder.GetTypes())
             {
-                if (type.IsClass && !type.IsAbstract && GetSubscriberBaseType().IsAssignableFrom(type))
+                if (type.IsClass && !type.IsAbstract && baseType.IsAssignableFrom(type))
                 {
                     attribute = type.GetTypeInfo().GetCustomAttribute<MessageSubscriberAttribute>(true);
 
                     if (attribute != null)
                         attributes.Add(attribute);
-                    else
-                        throw new Exception($"订阅者 {type} 未标记相关特性！");
                 }
             }
 
@@ -64,30 +64,23 @@ namespace Voguedi.Messaging
 
         IReadOnlyList<string> GetQueues()
         {
-            var attributes = GetAttributes();
+            var queues = new List<string>();
 
-            if (attributes?.Count > 0)
+            foreach (var attribute in GetAttributes())
             {
-                var queues = new List<string>();
+                if (string.IsNullOrWhiteSpace(attribute.GroupName))
+                    attribute.GroupName = defaultGroupName;
 
-                foreach (var attribute in attributes)
-                {
-                    if (string.IsNullOrWhiteSpace(attribute.GroupName))
-                        attribute.GroupName = defaultGroupName;
+                if (attribute.TopicQueueCount <= 0)
+                    attribute.TopicQueueCount = defaultTopicQueueCount;
 
-                    if (attribute.TopicQueueCount <= 0)
-                        attribute.TopicQueueCount = defaultTopicQueueCount;
-
-                    if (attribute.TopicQueueCount == 1)
-                        queues.Add($"{attribute.GroupName}.{attribute.Topic}");
-                    else if (attribute.TopicQueueCount > 1)
-                        queues.AddRange(BuildQueues(attribute.GroupName, attribute.Topic, attribute.TopicQueueCount));
-                }
-
-                return queues;
+                if (attribute.TopicQueueCount == 1)
+                    queues.Add($"{attribute.GroupName}.{attribute.Topic}");
+                else
+                    queues.AddRange(BuildQueues(attribute.GroupName, attribute.Topic, attribute.TopicQueueCount));
             }
 
-            throw new Exception($"未获取任何实现 {GetSubscriberBaseType()} 的订阅者信息！");
+            return queues.Distinct().ToList();
         }
 
         IReadOnlyList<string> BuildQueues(string groupName, string topic, int topicQueueCount)
@@ -128,7 +121,7 @@ namespace Voguedi.Messaging
                     }
                     catch (OperationCanceledException ex)
                     {
-                        logger.LogError(ex, "操作取消！");
+                        logger.LogError(ex, "消息订阅器释放异常！");
                     }
                 }
 
