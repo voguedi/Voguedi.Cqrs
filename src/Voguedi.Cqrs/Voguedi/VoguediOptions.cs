@@ -19,9 +19,9 @@ namespace Voguedi
 
         #region Public Properties
 
-        public string DefaultCommandGroupName { get; set; } = "CommandGroup";
+        public string DefaultCommandGroupName { get; set; } = "commands";
 
-        public string DefaultEventGroupName { get; set; } = "EventGroup";
+        public string DefaultEventGroupName { get; set; } = "events";
 
         public int DefaultTopicQueueCount { get; set; } = 1;
 
