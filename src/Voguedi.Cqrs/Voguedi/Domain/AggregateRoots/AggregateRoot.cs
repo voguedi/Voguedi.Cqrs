@@ -19,7 +19,7 @@ namespace Voguedi.Domain.AggregateRoots
 
         #region Ctors
 
-        protected AggregateRoot() { }
+        protected AggregateRoot(): base() { }
 
         protected AggregateRoot(TIdentity id) : base(id) { }
 

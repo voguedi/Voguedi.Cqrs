@@ -4,6 +4,12 @@ namespace Voguedi.Domain.Events
 {
     public abstract class Event<TIdentity> : Message, IEvent<TIdentity>
     {
+        #region Ctors
+
+        protected Event() : base() { }
+
+        #endregion
+
         #region Message
 
         public override string GetRoutingKey() => AggregateRootId?.ToString();

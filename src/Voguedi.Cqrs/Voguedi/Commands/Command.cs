@@ -7,6 +7,8 @@ namespace Voguedi.Commands
     {
         #region Ctors
 
+        protected Command() : base() { }
+
         protected Command(TIdentity aggregateRootId)
         {
             if (Equals(aggregateRootId, default(TIdentity)))
