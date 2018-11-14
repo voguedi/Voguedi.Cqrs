@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Voguedi.Messaging;
 using Voguedi.ObjectSerialization;
-using Voguedi.Reflection;
 
 namespace Voguedi.Domain.Events
 {
@@ -22,10 +21,10 @@ namespace Voguedi.Domain.Events
             IEventProcessor processor,
             IStringObjectSerializer objectSerializer,
             IMessageConsumerFactory consumerFactory,
-            ITypeFinder typeFinder,
+            IMessageSubscriptionManager subscriptionManager,
             ILogger<EventSubscriber> logger,
             VoguediOptions options)
-            : base(consumerFactory, typeFinder, logger, options.DefaultEventGroupName, options.DefaultTopicQueueCount)
+            : base(consumerFactory, subscriptionManager, logger, options.DefaultEventGroupName, options.DefaultTopicQueueCount)
         {
             this.processor = processor;
             this.objectSerializer = objectSerializer;
@@ -35,7 +34,7 @@ namespace Voguedi.Domain.Events
 
         #region MessageSubscriber
 
-        protected override Type GetSubscriberBaseType() => typeof(IEvent);
+        protected override Type GetMessageBaseType() => typeof(IEvent);
 
         protected override void Process(ReceivingMessage receivingMessage, IMessageConsumer consumer)
         {

@@ -2,7 +2,6 @@
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Voguedi.Domain.AggregateRoots;
 using Voguedi.Domain.Events;
 
@@ -13,17 +12,12 @@ namespace Voguedi.Domain.Repositories
         #region Private Fields
 
         readonly IEventStore eventStore;
-        readonly ILogger logger;
 
         #endregion
 
         #region Ctors
         
-        public EventSourcedRepository(IEventStore eventStore, ILogger<EventSourcedRepository> logger)
-        {
-            this.eventStore = eventStore;
-            this.logger = logger;
-        }
+        public EventSourcedRepository(IEventStore eventStore) => this.eventStore = eventStore;
 
         #endregion
 
@@ -61,22 +55,17 @@ namespace Voguedi.Domain.Repositories
             {
                 var eventStream = result.Data;
 
-                try
+                if (eventStream != null)
                 {
                     var aggregateRoot = Build(aggregateRootType, aggregateRootId);
                     aggregateRoot.ReplayEvents(eventStream);
-                    logger.LogInformation($"事件溯源重建聚合根成功！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}, EventStream = {eventStream}]");
                     return aggregateRoot;
                 }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, $"事件溯源重建聚合根失败！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}, EventStream = {eventStream}]");
-                    return null;
-                }
+
+                return null;
             }
 
-            logger.LogError(result.Exception, $"事件溯源重建聚合根失败，未获取任何已存储的事件！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
-            return null;
+            throw result.Exception;
         }
 
         #endregion

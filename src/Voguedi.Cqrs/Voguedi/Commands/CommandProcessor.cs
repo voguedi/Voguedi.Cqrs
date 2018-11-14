@@ -56,7 +56,7 @@ namespace Voguedi.Commands
             foreach (var item in queue)
             {
                 if (queueMapping.TryRemove(item.Key))
-                    logger.LogInformation($"不活跃命令处理队列清理成功！ [AggregateRootId = {item.Key}, QueueActiveExpiration = {expiration}]");
+                    logger.LogInformation($"命令处理队列清理成功！ [AggregateRootId = {item.Key}, QueueActiveExpiration = {expiration}]");
             }
         }
 

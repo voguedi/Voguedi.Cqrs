@@ -1,12 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Voguedi.DisposableObjects;
-using Voguedi.Reflection;
 
 namespace Voguedi.Messaging
 {
@@ -15,7 +11,7 @@ namespace Voguedi.Messaging
         #region Private Fields
 
         readonly IMessageConsumerFactory consumerFactory;
-        readonly ITypeFinder typeFinder;
+        readonly IMessageSubscriptionManager subscriptionManager;
         readonly ILogger logger;
         readonly string defaultGroupName;
         readonly int defaultTopicQueueCount;
@@ -29,10 +25,15 @@ namespace Voguedi.Messaging
 
         #region Ctors
 
-        protected MessageSubscriber(IMessageConsumerFactory consumerFactory, ITypeFinder typeFinder, ILogger logger, string defaultGroupName, int defaultTopicQueueCount)
+        protected MessageSubscriber(
+            IMessageConsumerFactory consumerFactory,
+            IMessageSubscriptionManager subscriptionManager,
+            ILogger logger,
+            string defaultGroupName,
+            int defaultTopicQueueCount)
         {
             this.consumerFactory = consumerFactory;
-            this.typeFinder = typeFinder;
+            this.subscriptionManager = subscriptionManager;
             this.logger = logger;
             this.defaultGroupName = defaultGroupName;
             this.defaultTopicQueueCount = defaultTopicQueueCount;
@@ -42,64 +43,13 @@ namespace Voguedi.Messaging
 
         #region Private Methods
 
-        IReadOnlyList<MessageSubscriberAttribute> GetAttributes()
-        {
-            var attributes = new List<MessageSubscriberAttribute>();
-            var attribute = default(MessageSubscriberAttribute);
-            var baseType = GetSubscriberBaseType();
-
-            foreach (var type in typeFinder.GetTypes())
-            {
-                if (type.IsClass && !type.IsAbstract && baseType.IsAssignableFrom(type))
-                {
-                    attribute = type.GetTypeInfo().GetCustomAttribute<MessageSubscriberAttribute>(true);
-
-                    if (attribute != null)
-                        attributes.Add(attribute);
-                }
-            }
-
-            return attributes;
-        }
-
-        IReadOnlyList<string> GetQueues()
-        {
-            var queues = new List<string>();
-
-            foreach (var attribute in GetAttributes())
-            {
-                if (string.IsNullOrWhiteSpace(attribute.GroupName))
-                    attribute.GroupName = defaultGroupName;
-
-                if (attribute.TopicQueueCount <= 0)
-                    attribute.TopicQueueCount = defaultTopicQueueCount;
-
-                if (attribute.TopicQueueCount == 1)
-                    queues.Add($"{attribute.GroupName}.{attribute.Topic}");
-                else
-                    queues.AddRange(BuildQueues(attribute.GroupName, attribute.Topic, attribute.TopicQueueCount));
-            }
-
-            return queues.Distinct().ToList();
-        }
-
-        IReadOnlyList<string> BuildQueues(string groupName, string topic, int topicQueueCount)
-        {
-            var queues = new List<string>();
-
-            for (var i = 0; i < topicQueueCount; i++)
-                queues.Add($"{groupName}.{topic}.{i}");
-
-            return queues;
-        }
-
         void RegisterProcessor(IMessageConsumer consumer) => consumer.Received += (sender, e) => Process(e, consumer);
 
         #endregion
 
         #region Protected Methods
 
-        protected abstract Type GetSubscriberBaseType();
+        protected abstract Type GetMessageBaseType();
 
         protected abstract void Process(ReceivingMessage receivingMessage, IMessageConsumer consumer);
 
@@ -121,7 +71,7 @@ namespace Voguedi.Messaging
                     }
                     catch (OperationCanceledException ex)
                     {
-                        logger.LogError(ex, "消息订阅器释放异常！");
+                        logger.LogError(ex, "订阅器当前状态异常！");
                     }
                 }
 
@@ -137,15 +87,17 @@ namespace Voguedi.Messaging
         {
             if (!started)
             {
-                foreach (var queue in GetQueues())
+                subscriptionManager.Register(GetMessageBaseType(), defaultGroupName, defaultTopicQueueCount);
+
+                foreach (var queue in subscriptionManager.GetQueues())
                 {
                     Task.Factory.StartNew(
                         () =>
                         {
-                            using (var consumer = consumerFactory.Create(queue))
+                            using (var consumer = consumerFactory.Create(queue.Key))
                             {
                                 RegisterProcessor(consumer);
-                                consumer.Subscribe(queue);
+                                consumer.Subscribe(queue.Value);
                                 consumer.Listening(timeout, cancellationTokenSource.Token);
                             }
                         },

@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Logging;
 using Voguedi.Messaging;
 using Voguedi.ObjectSerialization;
-using Voguedi.Reflection;
 
 namespace Voguedi.Commands
 {
@@ -21,10 +20,10 @@ namespace Voguedi.Commands
             ICommandProcessor processor,
             IStringObjectSerializer objectSerializer,
             IMessageConsumerFactory consumerFactory,
-            ITypeFinder typeFinder,
+            IMessageSubscriptionManager subscriptionManager,
             ILogger<CommandSubscriber> logger,
             VoguediOptions options)
-            : base(consumerFactory, typeFinder, logger, options.DefaultCommandGroupName, options.DefaultTopicQueueCount)
+            : base(consumerFactory, subscriptionManager, logger, options.DefaultCommandGroupName, options.DefaultTopicQueueCount)
         {
             this.processor = processor;
             this.objectSerializer = objectSerializer;
@@ -34,7 +33,7 @@ namespace Voguedi.Commands
 
         #region MessageSubscriber
 
-        protected override Type GetSubscriberBaseType() => typeof(ICommand);
+        protected override Type GetMessageBaseType() => typeof(ICommand);
 
         protected override void Process(ReceivingMessage receivingMessage, IMessageConsumer consumer)
         {

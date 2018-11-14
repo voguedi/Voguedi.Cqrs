@@ -20,8 +20,10 @@ namespace Voguedi.Domain.Events.SqlServer
 
         readonly IStringObjectSerializer objectSerializer;
         readonly ILogger logger;
-        readonly SqlServerOptions options;
-        const string tableName = "Events";
+        readonly string connectionString;
+        readonly string schema;
+        readonly string tableName;
+        readonly int tableCount;
         const string versionUniqueIndexName = "IX_Events_AggregateRootId_Version";
         const string commandIdUniqueIndexName = "IX_Events_AggregateRootId_CommandId";
         const string getByCommandIdSql = "SELECT * FROM {0} WHERE [AggregateRootId] = @AggregateRootId AND [CommandId] = @CommandId";
@@ -59,7 +61,10 @@ namespace Voguedi.Domain.Events.SqlServer
         {
             this.objectSerializer = objectSerializer;
             this.logger = logger;
-            this.options = options;
+            connectionString = options.ConnectionString;
+            schema = options.Schema;
+            tableName = options.EventTableName;
+            tableCount = options.EventTableCount;
         }
 
         #endregion
@@ -68,14 +73,14 @@ namespace Voguedi.Domain.Events.SqlServer
 
         string GetTableName(string aggregateRootId)
         {
-            if (options.TableCount > 1)
+            if (tableCount > 1)
             {
                 var hashCode = Utils.GetHashCode(aggregateRootId);
-                var tableNameIndex = hashCode & options.TableCount;
-                return $"[{options.Schema}].[{tableName}_{tableNameIndex}]";
+                var tableNameIndex = hashCode & tableCount;
+                return $"[{schema}].[{tableName}_{tableNameIndex}]";
             }
 
-            return $"[{options.Schema}].[{tableName}]";
+            return $"[{schema}].[{tableName}]";
         }
 
         string BuildSql(string sql, string aggregateRootId) => string.Format(sql, GetTableName(aggregateRootId));
@@ -132,7 +137,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     var descriptor = await connection.QueryFirstOrDefaultAsync<EventStreamDescriptor>(
                         BuildSql(getByCommandIdSql, aggregateRootId),
@@ -166,7 +171,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     var descriptor = await connection.QueryFirstOrDefaultAsync<EventStreamDescriptor>(
                         BuildSql(getByVersionSql, aggregateRootId),
@@ -210,7 +215,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     var descriptors = await connection.QueryAsync<EventStreamDescriptor>(
                         BuildSql(getAllSql, aggregateRootId),
@@ -241,7 +246,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     await connection.ExecuteAsync(BuildSql(saveSql, stream.AggregateRootId), ToStreamDescriptor(stream));
                     logger.LogInformation($"事件存储成功！ {stream}");
@@ -281,17 +286,17 @@ namespace Voguedi.Domain.Events.SqlServer
             {
                 var sql = new StringBuilder();
 
-                if (options.TableCount > 1)
+                if (tableCount > 1)
                 {
-                    for (int i = 0, j = options.TableCount; i < j; i++)
-                        sql.AppendFormat(initializeSql, options.Schema, $"{tableName}_{i}");
+                    for (int i = 0, j = tableCount; i < j; i++)
+                        sql.AppendFormat(initializeSql, schema, $"{tableName}_{i}");
                 }
                 else
-                    sql.AppendFormat(initializeSql, options.Schema, tableName);
+                    sql.AppendFormat(initializeSql, schema, tableName);
 
                 try
                 {
-                    using (var connection = new SqlConnection(options.ConnectionString))
+                    using (var connection = new SqlConnection(connectionString))
                         await connection.ExecuteAsync(sql.ToString());
 
                     logger.LogInformation($"事件存储器初始化成功！ [Sql = {initializeSql}]");

@@ -52,9 +52,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(setupAction));
 
             services.AddDependencyServices();
-
-            services.TryAddSingleton<ICommandBus, CommandBus>();
-            services.TryAddSingleton<ICommandSender, CommandBus>();
+            
+            services.TryAddSingleton<ICommandSender, CommandSender>();
             services.TryAddSingleton<ICommandProcessor, CommandProcessor>();
             services.TryAddSingleton<IProcessingCommandHandler, ProcessingCommandHandler>();
             services.TryAddSingleton<IProcessingCommandHandlerContextFactory, ProcessingCommandHandlerContextFactory>();
@@ -70,11 +69,11 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IProcessingEventHandler, ProcessingEventHandler>();
             services.TryAddSingleton<IProcessingEventQueueFactory, ProcessingEventQueueFactory>();
             AddEventHandler(services);
-
-            services.TryAddSingleton<IMessageQueueTopicProvider, MessageQueueTopicProvider>();
             
             services.AddSingleton<ICache, MemoryCache>();
             services.AddSingleton<IRepository, EventSourcedRepository>();
+            services.TryAddSingleton<IMessageSubscriptionManager, MessageSubscriptionManager>();
+
             services.TryAddEnumerable(ServiceDescriptor.Singleton<IService, MemoryCache>());
             services.TryAddEnumerable(ServiceDescriptor.Singleton<IService, CommandProcessor>());
             services.TryAddEnumerable(ServiceDescriptor.Singleton<IService, CommandSubscriber>());

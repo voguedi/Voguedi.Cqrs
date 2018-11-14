@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
-using Voguedi.Messaging;
 using Voguedi.Services;
 using Voguedi.Stores;
 

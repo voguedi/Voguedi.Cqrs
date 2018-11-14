@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Voguedi.AsyncExecution;
@@ -14,23 +12,18 @@ namespace Voguedi.Domain.Events
         #region Private Fields
 
         readonly IMessageProducer producer;
-        readonly IMessageQueueTopicProvider queueTopicProvider;
+        readonly IMessageSubscriptionManager subscriptionManager;
         readonly IStringObjectSerializer objectSerializer;
-        readonly string defaultGroupName;
-        readonly int defaultTopicQueueCount;
-        readonly ConcurrentDictionary<Type, string> topicMapping = new ConcurrentDictionary<Type, string>();
 
         #endregion
 
         #region Ctors
 
-        public EventPublisher(IMessageProducer producer, IMessageQueueTopicProvider queueTopicProvider, IStringObjectSerializer objectSerializer, VoguediOptions options)
+        public EventPublisher(IMessageProducer producer, IMessageSubscriptionManager subscriptionManager, IStringObjectSerializer objectSerializer)
         {
             this.producer = producer;
-            this.queueTopicProvider = queueTopicProvider;
+            this.subscriptionManager = subscriptionManager;
             this.objectSerializer = objectSerializer;
-            defaultGroupName = options.DefaultEventGroupName;
-            defaultTopicQueueCount = options.DefaultTopicQueueCount;
         }
 
         #endregion
@@ -61,8 +54,7 @@ namespace Voguedi.Domain.Events
 
         #region IEventPublisher
 
-        public Task<AsyncExecutedResult> PublishStreamAsync(EventStream stream)
-            => producer.ProduceAsync(queueTopicProvider.Get(stream.Events.First(), defaultGroupName, defaultTopicQueueCount), BuildQueueMessage(stream));
+        public Task<AsyncExecutedResult> PublishStreamAsync(EventStream stream) => producer.ProduceAsync(subscriptionManager.GetQueueTopic(stream.Events.First()), BuildQueueMessage(stream));
 
         #endregion
     }

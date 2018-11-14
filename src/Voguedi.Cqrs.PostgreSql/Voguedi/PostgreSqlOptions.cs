@@ -8,7 +8,13 @@
 
         public string Schema { get; set; } = "dbo";
 
-        public int TableCount { get; set; } = 1;
+        public string EventTableName { get; set; } = "Events";
+
+        public int EventTableCount { get; set; } = 1;
+
+        public string EventVersionTableName { get; set; } = "EventVersions";
+
+        public int EventVersionTableCount { get; set; } = 1;
 
         #endregion
     }

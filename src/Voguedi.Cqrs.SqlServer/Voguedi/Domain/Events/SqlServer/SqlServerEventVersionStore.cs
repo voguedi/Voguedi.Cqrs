@@ -18,8 +18,10 @@ namespace Voguedi.Domain.Events.SqlServer
 
         readonly IStringIdentityGenerator identityGenerator;
         readonly ILogger logger;
-        readonly SqlServerOptions options;
-        const string tableName = "EventVersions";
+        readonly string connectionString;
+        readonly string schema;
+        readonly string tableName;
+        readonly int tableCount;
         const string getSql = "SELECT [Version] FROM {0} WHERE [AggregateRootTypeName] = @AggregateRootTypeName AND [AggregateRootId] = @AggregateRootId";
         const string createSql = "INSERT INTO {0} ([Id], [AggregateRootTypeName], [AggregateRootId], [Version], [CreatedOn]) VALUES (@Id, @AggregateRootTypeName, @AggregateRootId, @Version, @CreatedOn)";
         const string modifySql = "UPDATE {0} SET [Version] = @Version, [ModifiedOn] = @ModifiedOn WHERE [AggregateRootTypeName] = @AggregateRootTypeName AND [AggregateRootId] = @AggregateRootId AND [Version] = (@Version - 1)";
@@ -51,7 +53,10 @@ namespace Voguedi.Domain.Events.SqlServer
         {
             this.identityGenerator = identityGenerator;
             this.logger = logger;
-            this.options = options;
+            connectionString = options.ConnectionString;
+            schema = options.Schema;
+            tableName = options.EventVersionTableName;
+            tableCount = options.EventVersionTableCount;
         }
 
         #endregion
@@ -60,14 +65,14 @@ namespace Voguedi.Domain.Events.SqlServer
 
         string GetTableName(string aggregateRootId)
         {
-            if (options.TableCount > 1)
+            if (tableCount > 1)
             {
                 var hashCode = Utils.GetHashCode(aggregateRootId);
-                var tableNameIndex = hashCode & options.TableCount;
-                return $"[{options.Schema}].[{tableName}_{tableNameIndex}]";
+                var tableNameIndex = hashCode & tableCount;
+                return $"[{schema}].[{tableName}_{tableNameIndex}]";
             }
 
-            return $"[{options.Schema}].[{tableName}]";
+            return $"[{schema}].[{tableName}]";
         }
 
         string BuildSql(string sql, string aggregateRootId) => string.Format(sql, GetTableName(aggregateRootId));
@@ -76,7 +81,7 @@ namespace Voguedi.Domain.Events.SqlServer
         {
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     await connection.ExecuteAsync(
                         BuildSql(createSql, aggregateRootId),
@@ -103,7 +108,7 @@ namespace Voguedi.Domain.Events.SqlServer
         {
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     await connection.ExecuteAsync(
                         BuildSql(modifySql, aggregateRootId),
@@ -139,7 +144,7 @@ namespace Voguedi.Domain.Events.SqlServer
 
             try
             {
-                using (var connection = new SqlConnection(options.ConnectionString))
+                using (var connection = new SqlConnection(connectionString))
                 {
                     var version = await connection.QueryFirstOrDefaultAsync<long>(
                         BuildSql(getSql, aggregateRootId),
@@ -182,17 +187,17 @@ namespace Voguedi.Domain.Events.SqlServer
             {
                 var sql = new StringBuilder();
 
-                if (options.TableCount > 1)
+                if (tableCount > 1)
                 {
-                    for (int i = 0, j = options.TableCount; i < j; i++)
-                        sql.AppendFormat(initializeSql, options.Schema, $"{tableName}_{i}");
+                    for (int i = 0, j = tableCount; i < j; i++)
+                        sql.AppendFormat(initializeSql, schema, $"{tableName}_{i}");
                 }
                 else
-                    sql.AppendFormat(initializeSql, options.Schema, tableName);
+                    sql.AppendFormat(initializeSql, schema, tableName);
 
                 try
                 {
-                    using (var connection = new SqlConnection(options.ConnectionString))
+                    using (var connection = new SqlConnection(connectionString))
                         await connection.ExecuteAsync(sql.ToString());
 
                     logger.LogInformation($"已发布事件版本存储器初始化成功！ [Sql = {initializeSql}]");

@@ -90,7 +90,7 @@ namespace Voguedi.Domain.Caching
             foreach (var item in aggregateRoots)
             {
                 if (cacheItemMapping.TryRemove(item.Key, out cacheItem))
-                    logger.LogInformation($"过期聚合根清理成功！ [AggregateRootType = {cacheItem.AggregateRoot.GetAggregateRootType()}, AggregateRootId = {cacheItem.AggregateRoot.GetAggregateRootId()}]");
+                    logger.LogInformation($"聚合根清理成功！ [AggregateRootType = {cacheItem.AggregateRoot.GetAggregateRootType()}, AggregateRootId = {cacheItem.AggregateRoot.GetAggregateRootId()}]");
             }
         }
 
@@ -127,24 +127,17 @@ namespace Voguedi.Domain.Caching
 
                 if (aggregateRoot.GetUncommittedEvents()?.Count > 0)
                 {
-                    var lasted = await repository.GetAsync(aggregateRootType, aggregateRootId);
+                    var lastedAggregateRoot = await repository.GetAsync(aggregateRootType, aggregateRootId);
 
-                    if (lasted != null)
-                    {
-                        await SetAsync(lasted);
-                        logger.LogInformation($"获取聚合根缓存成功！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
-                        return lasted;
-                    }
+                    if (lastedAggregateRoot != null)
+                        await SetAsync(lastedAggregateRoot);
 
-                    logger.LogError($"未获取任何聚合根最新状态！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
-                    return null;
+                    return lastedAggregateRoot;
                 }
 
-                logger.LogInformation($"获取聚合根缓存成功！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
                 return aggregateRoot;
             }
 
-            logger.LogError($"未获取任何聚合根缓存！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
             return null;
         }
 
@@ -162,7 +155,6 @@ namespace Voguedi.Domain.Caching
                     cacheItem.Timestamp = DateTime.UtcNow;
                     return cacheItem;
                 });
-            logger.LogInformation($"聚合根缓存更新成功！ [AggregateRootType = {aggregateRoot.GetAggregateRootType()}, AggregateRootId = {aggregateRoot.GetAggregateRootId()}]");
             return Task.CompletedTask;
         }
 
@@ -177,12 +169,7 @@ namespace Voguedi.Domain.Caching
             var aggregateRoot = await repository.GetAsync(aggregateRootType, aggregateRootId);
             
             if (aggregateRoot != null)
-            {
                 await SetAsync(aggregateRoot);
-                logger.LogError($"聚合根缓存刷新成功！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
-            }
-
-            logger.LogError($"未获取任何聚合根最新状态！ [AggregateRootType = {aggregateRootType}, AggregateRootId = {aggregateRootId}]");
         }
 
         #endregion

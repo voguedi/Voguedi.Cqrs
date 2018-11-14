@@ -160,7 +160,7 @@ namespace Voguedi.Commands
 
             while (isProcessing)
             {
-                logger.LogInformation($"命令处理队列当前状态为已启动，等待并暂停！ [AggregateRootId = {aggregateRootId}]");
+                logger.LogInformation($"命令处理队列当前状态已启动，等待并暂停！ [AggregateRootId = {aggregateRootId}]");
                 processingHandle.WaitOne(timeout);
             }
 
