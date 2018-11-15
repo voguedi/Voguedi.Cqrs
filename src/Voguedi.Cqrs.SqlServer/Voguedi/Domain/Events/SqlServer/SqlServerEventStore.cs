@@ -299,11 +299,11 @@ namespace Voguedi.Domain.Events.SqlServer
                     using (var connection = new SqlConnection(connectionString))
                         await connection.ExecuteAsync(sql.ToString());
 
-                    logger.LogInformation($"事件存储器初始化成功！ [Sql = {initializeSql}]");
+                    logger.LogInformation($"事件存储器初始化成功！ [Sql = {sql}]");
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, $"事件存储器初始化失败！ [Sql = {initializeSql}]");
+                    logger.LogError(ex, $"事件存储器初始化失败！ [Sql = {sql}]");
                 }
             }
         }
