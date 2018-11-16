@@ -157,7 +157,7 @@ namespace Voguedi.Domain.Events
                 }
                 else if (streamVersion > exceptedVersion)
                 {
-                    logger.LogInformation($"当前事件版本大于待处理版本！ [StoredVersion = {storedVersion}, ProcessingEventStream = {stream}]");
+                    logger.LogInformation($"当前事件版本大于待处理版本，等待处理！ [StoredVersion = {storedVersion}, ProcessingEventStream = {stream}]");
                     processingEvent.EnqueueToWaitingQueue();
                 }
                 else

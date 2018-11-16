@@ -34,7 +34,7 @@ namespace Voguedi.Domain.Repositories
             if (defaultCtor != null)
                 return defaultCtor.Invoke(new object[] { aggregateRootId }) as IEventSourcedAggregateRoot;
 
-            throw new Exception($"聚合根 {aggregateRootType} 未提供初始化 Id 的构造函数！");
+            throw new Exception($"聚合根 {aggregateRootType} 未提供初始化 Id 的构造方法！");
         }
 
         #endregion

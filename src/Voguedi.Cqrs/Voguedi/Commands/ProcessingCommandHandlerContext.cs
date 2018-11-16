@@ -42,7 +42,7 @@ namespace Voguedi.Commands
                 throw new ArgumentException(nameof(aggregateRoot), $"聚合根 {typeof(TAggregateRoot)} Id 不能为空！");
 
             if (!aggregateRootMapping.TryAdd(aggregateRoot.Id.ToString(), aggregateRoot))
-                throw new ArgumentException(nameof(aggregateRoot), $"聚合根 {typeof(TAggregateRoot)} 重复创建！ [AggregateRootId = {aggregateRoot.Id}]");
+                throw new ArgumentException(nameof(aggregateRoot), $"聚合根 [Type = {typeof(TAggregateRoot)}, Id = {aggregateRoot.Id}] 重复创建！");
 
             return Task.CompletedTask;
         }

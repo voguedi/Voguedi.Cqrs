@@ -135,7 +135,7 @@ namespace Voguedi.Commands
             }
             else
             {
-                logger.LogInformation(result.Exception, $"事件发布失败！ [CommandType = {command.GetType()}, CommandId = {command.Id}, EventStream = {eventStream}]");
+                logger.LogError(result.Exception, $"事件发布失败！ [CommandType = {command.GetType()}, CommandId = {command.Id}, EventStream = {eventStream}]");
                 await processingCommand.OnQueueRejectedAsync();
             }
         }
@@ -169,7 +169,7 @@ namespace Voguedi.Commands
                 return processingCommand.OnQueueRejectedAsync();
             }
 
-            logger.LogWarning($"命令未处理任何聚合根！ [CommandType = {commandType}, CommandId = {commandId}]");
+            logger.LogError($"命令未处理任何聚合根！ [CommandType = {commandType}, CommandId = {commandId}]");
             return TryGetAndPublishEventStreamAsync(processingCommand);
         }
 

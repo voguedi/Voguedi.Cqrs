@@ -32,7 +32,7 @@ namespace Voguedi.Domain.Events
             foreach (var e in events)
             {
                 if (e.Version != version)
-                    throw new ArgumentNullException(nameof(events), $"事件版本与领域事件版本不同！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, Version = {version}, EventVersion = {e.Version}]");
+                    throw new ArgumentException(nameof(events), $"聚合根 [Type = {aggregateRootTypeName}, Id = {aggregateRootId}] 版本 {version} 与事件 {e.GetType()} 版本 {e.Version} 不同！");
             }
 
             Id = id;

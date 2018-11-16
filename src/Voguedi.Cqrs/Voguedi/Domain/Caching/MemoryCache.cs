@@ -90,7 +90,7 @@ namespace Voguedi.Domain.Caching
             foreach (var item in aggregateRoots)
             {
                 if (cacheItemMapping.TryRemove(item.Key, out cacheItem))
-                    logger.LogInformation($"聚合根清理成功！ [AggregateRootType = {cacheItem.AggregateRoot.GetAggregateRootType()}, AggregateRootId = {cacheItem.AggregateRoot.GetAggregateRootId()}]");
+                    logger.LogInformation($"聚合根清理成功！ [AggregateRootType = {cacheItem.AggregateRoot.GetAggregateRootType()}, AggregateRootId = {cacheItem.AggregateRoot.GetAggregateRootId()}, Expiration = {expiration}]");
             }
         }
 

@@ -71,7 +71,7 @@ namespace Voguedi.Domain.Events
             foreach (var item in queue)
             {
                 if (queueMapping.TryRemove(item.Key))
-                    logger.LogInformation($"不活跃命令处理队列清理成功！ [AggregateRootId = {item.Key}, QueueActiveExpiration = {expiration}]");
+                    logger.LogInformation($"不活跃命令处理队列清理成功！ [AggregateRootId = {item.Key}, Expiration = {expiration}]");
             }
         }
 
@@ -84,7 +84,7 @@ namespace Voguedi.Domain.Events
             var aggregateRootId = processingEvent.Stream.AggregateRootId;
 
             if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentException(nameof(processingEvent), $"事件处理的聚合根 Id 不能为空！");
+                throw new ArgumentException(nameof(processingEvent), $"事件 {processingEvent.Stream} 处理的聚合根 Id 不能为空！");
 
             var queue = queueMapping.GetOrAdd(aggregateRootId, queueFactory.Create);
             queue.Enqueue(processingEvent);

@@ -47,7 +47,7 @@ namespace Voguedi
                     }
                     catch (OperationCanceledException ex)
                     {
-                        logger.LogError(ex, "操作取消！");
+                        logger.LogError(ex, "框架初始化操作取消！");
                     }
                 });
         }
@@ -80,7 +80,7 @@ namespace Voguedi
                         }
                         catch (Exception ex)
                         {
-                            logger.LogError(ex, $"相关服务启动异常！");
+                            logger.LogError(ex, $"框架相关服务启动失败！");
                         }
                     }
 

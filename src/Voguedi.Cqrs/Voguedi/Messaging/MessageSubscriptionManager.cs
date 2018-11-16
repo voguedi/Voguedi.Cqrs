@@ -63,7 +63,7 @@ namespace Voguedi.Messaging
                 if (attribute != null)
                 {
                     if (string.IsNullOrWhiteSpace(attribute.Topic))
-                        throw new Exception($"订阅者 {type} 订阅主题不能为空！ [MessageBaseType = {messageBaseType}]");
+                        throw new Exception($"订阅者 {type} 订阅主题不能为空！");
 
                     if (string.IsNullOrWhiteSpace(attribute.GroupName) && !string.IsNullOrWhiteSpace(defaultGroupName))
                         attribute.GroupName = defaultGroupName;
@@ -71,7 +71,7 @@ namespace Voguedi.Messaging
                     if (attribute.TopicQueueCount <= 0)
                     {
                         if (defaultTopicQueueCount <= 0)
-                            throw new Exception($"默认主题队列数量小于 1 ！ [MessageBaseType = {messageBaseType}]");
+                            throw new Exception($"默认主题队列数量小于 1 ！");
 
                         attribute.TopicQueueCount = defaultTopicQueueCount;
                     }
@@ -129,7 +129,7 @@ namespace Voguedi.Messaging
                 return $"{subscription.QueueTopic}_{queueIndex}";
             }
 
-            throw new Exception($"消息 {message.GetType()} 未标记相关订阅特性！");
+            throw new Exception($"订阅者 {message.GetType()} 未标记相关订阅特性！");
         }
 
         public void Register(Type messageBaseType, string defaultGroupName, int defaultTopicQueueCount)

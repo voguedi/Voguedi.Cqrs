@@ -56,7 +56,7 @@ namespace Voguedi.Commands
             foreach (var item in queue)
             {
                 if (queueMapping.TryRemove(item.Key))
-                    logger.LogInformation($"命令处理队列清理成功！ [AggregateRootId = {item.Key}, QueueActiveExpiration = {expiration}]");
+                    logger.LogInformation($"命令处理队列清理成功！ [AggregateRootId = {item.Key}, Expiration = {expiration}]");
             }
         }
 
@@ -85,7 +85,7 @@ namespace Voguedi.Commands
             var aggregateRootId = command.AggregateRootId;
 
             if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentException(nameof(processingCommand), $"命令处理的聚合根 Id 不能为空！ [CommandType = {command.GetType()}, CommandId = {command.Id}]");
+                throw new ArgumentException(nameof(processingCommand), $"命令 [Type = {command.GetType()}, Id = {command.Id}] 处理的聚合根 Id 不能为空！");
 
             var queue = queueMapping.GetOrAdd(aggregateRootId, queueFactory.Create);
             queue.Enqueue(processingCommand);
