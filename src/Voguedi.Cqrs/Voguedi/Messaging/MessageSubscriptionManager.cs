@@ -65,13 +65,8 @@ namespace Voguedi.Messaging
                     if (string.IsNullOrWhiteSpace(attribute.Topic))
                         throw new Exception($"订阅者 {type} 订阅主题不能为空！ [MessageBaseType = {messageBaseType}]");
 
-                    if (string.IsNullOrWhiteSpace(attribute.GroupName))
-                    {
-                        if (string.IsNullOrWhiteSpace(defaultGroupName))
-                            throw new Exception($"默认组名不能为空！ [MessageBaseType = {messageBaseType}]");
-
+                    if (string.IsNullOrWhiteSpace(attribute.GroupName) && !string.IsNullOrWhiteSpace(defaultGroupName))
                         attribute.GroupName = defaultGroupName;
-                    }
 
                     if (attribute.TopicQueueCount <= 0)
                     {
