@@ -135,13 +135,8 @@ namespace Voguedi.Domain.Events.MySql
                         new { AggregateRootId = aggregateRootId, CommandId = commandId });
 
                     if (descriptor != null)
-                    {
-                        var stream = ToStream(descriptor);
-                        logger.LogInformation($"获取事件成功！ {stream}");
-                        return AsyncExecutedResult<EventStream>.Success(stream);
-                    }
+                        return AsyncExecutedResult<EventStream>.Success(ToStream(descriptor));
 
-                    logger.LogError($"未获取任何事件！ [AggregateRootId = {aggregateRootId}, CommandId = {commandId}]");
                     return AsyncExecutedResult<EventStream>.Success(null);
                 }
             }
@@ -169,13 +164,8 @@ namespace Voguedi.Domain.Events.MySql
                         new { AggregateRootId = aggregateRootId, Version = version });
 
                     if (descriptor != null)
-                    {
-                        var stream = ToStream(descriptor);
-                        logger.LogInformation($"获取事件成功！ {stream}");
-                        return AsyncExecutedResult<EventStream>.Success(stream);
-                    }
+                        return AsyncExecutedResult<EventStream>.Success(ToStream(descriptor));
 
-                    logger.LogError($"未获取任何事件！ [AggregateRootId = {aggregateRootId}, Version = {version}]");
                     return AsyncExecutedResult<EventStream>.Success(null);
                 }
             }
@@ -213,13 +203,8 @@ namespace Voguedi.Domain.Events.MySql
                         new { AggregateRootTypeName = aggregateRootTypeName, AggregateRootId = aggregateRootId, MinVersion = minVersion, MaxVersion = maxVersion });
 
                     if (descriptors?.Count() > 0)
-                    {
-                        var streams = descriptors.Select(d => ToStream(d)).ToList();
-                        logger.LogInformation($"获取事件成功！ EventStreams = [{streams.Select(s => s.ToString())}]");
-                        return AsyncExecutedResult<IReadOnlyList<EventStream>>.Success(streams);
-                    }
+                        return AsyncExecutedResult<IReadOnlyList<EventStream>>.Success(descriptors.Select(d => ToStream(d)).ToList());
 
-                    logger.LogError($"未获取任何事件！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, MinVersion = {minVersion}, MaxVersion = {maxVersion}]");
                     return AsyncExecutedResult<IReadOnlyList<EventStream>>.Success(null);
                 }
             }
@@ -240,22 +225,16 @@ namespace Voguedi.Domain.Events.MySql
                 using (var connection = new MySqlConnection(connectionString))
                 {
                     await connection.ExecuteAsync(BuildSql(saveSql, stream.AggregateRootId), ToStreamDescriptor(stream));
-                    logger.LogInformation($"事件存储成功！ {stream}");
                     return AsyncExecutedResult<EventStreamSavedResult>.Success(EventStreamSavedResult.Success);
                 }
             }
             catch (MySqlException ex)
             {
                 if (ex.Number == 1062 && ex.Message.Contains(versionUniqueIndexName))
-                {
-                    logger.LogWarning(ex, $"事件存储失败，存在相同版本！ {stream}");
                     return AsyncExecutedResult<EventStreamSavedResult>.Success(EventStreamSavedResult.DuplicatedEvent);
-                }
-                else if (ex.Number == 1062 && ex.Message.Contains(commandIdUniqueIndexName))
-                {
-                    logger.LogWarning(ex, $"事件存储失败，存在相同命令！ {stream}");
+
+                if (ex.Number == 1062 && ex.Message.Contains(commandIdUniqueIndexName))
                     return AsyncExecutedResult<EventStreamSavedResult>.Success(EventStreamSavedResult.DuplicatedCommand);
-                }
 
                 logger.LogError(ex, $"事件存储失败！ {stream}");
                 return AsyncExecutedResult<EventStreamSavedResult>.Failed(ex, EventStreamSavedResult.Failed);
@@ -285,12 +264,15 @@ namespace Voguedi.Domain.Events.MySql
                 else
                     sql.AppendFormat(initializeSql, schema, tableName);
 
+                var count = 0;
+
                 try
                 {
                     using (var connection = new MySqlConnection(connectionString))
-                        await connection.ExecuteAsync(sql.ToString());
+                        count = await connection.ExecuteAsync(sql.ToString());
 
-                    logger.LogInformation($"事件存储器初始化成功！ [Sql = {sql}]");
+                    if (count > 0)
+                        logger.LogInformation($"事件存储器初始化成功！ [Sql = {sql}]");
                 }
                 catch (Exception ex)
                 {

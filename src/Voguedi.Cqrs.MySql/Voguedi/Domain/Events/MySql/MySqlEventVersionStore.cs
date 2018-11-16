@@ -84,7 +84,6 @@ namespace Voguedi.Domain.Events.MySql
                             Version = 1L,
                             CreatedOn = DateTime.UtcNow
                         });
-                    logger.LogInformation($"存储已发布事件版本成功！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, Version = 1]");
                     return AsyncExecutedResult.Success;
                 }
             }
@@ -110,7 +109,6 @@ namespace Voguedi.Domain.Events.MySql
                             Version = version,
                             ModifiedOn = DateTime.UtcNow
                         });
-                    logger.LogInformation($"存储已发布事件版本成功！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, Version = {version}]");
                     return AsyncExecutedResult.Success;
                 }
             }
@@ -140,7 +138,6 @@ namespace Voguedi.Domain.Events.MySql
                     var version = await connection.QueryFirstOrDefaultAsync<long>(
                         BuildSql(getSql, aggregateRootId),
                         new { AggregateRootTypeName = aggregateRootTypeName, AggregateRootId = aggregateRootId });
-                    logger.LogInformation($"获取已发布事件版本成功！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, Version = {version}]");
                     return AsyncExecutedResult<long>.Success(version);
                 }
             }
@@ -186,12 +183,15 @@ namespace Voguedi.Domain.Events.MySql
                 else
                     sql.AppendFormat(initializeSql, $"`{schema}`.`{tableName}`");
 
+                var count = 0;
+
                 try
                 {
                     using (var connection = new MySqlConnection(connectionString))
-                        await connection.ExecuteAsync(sql.ToString());
+                        count = await connection.ExecuteAsync(sql.ToString());
 
-                    logger.LogInformation($"已发布事件版本存储器初始化成功！ [Sql = {sql}]");
+                    if (count > 0)
+                        logger.LogInformation($"已发布事件版本存储器初始化成功！ [Sql = {sql}]");
                 }
                 catch (Exception ex)
                 {
