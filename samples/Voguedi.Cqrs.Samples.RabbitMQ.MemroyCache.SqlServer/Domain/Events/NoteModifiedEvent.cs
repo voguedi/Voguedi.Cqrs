@@ -7,13 +7,15 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Domain.Events
     {
         #region Public Properties
 
-        public string Title { get; }
+        public string Title { get; set; }
 
-        public string Content { get; }
+        public string Content { get; set; }
 
         #endregion
 
         #region Ctors
+
+        public NoteModifiedEvent() { }
 
         public NoteModifiedEvent(string title, string content)
         {

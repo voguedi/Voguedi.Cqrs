@@ -7,8 +7,9 @@ namespace Voguedi.Commands
     {
         #region Ctors
 
+        protected Command() : base() { }
+
         protected Command(TIdentity aggregateRootId)
-            : base()
         {
             if (Equals(aggregateRootId, default(TIdentity)))
                 throw new ArgumentNullException(nameof(aggregateRootId));
@@ -26,7 +27,7 @@ namespace Voguedi.Commands
 
         #region ICommand<TIdentity>
 
-        public TIdentity AggregateRootId { get; protected set; }
+        public TIdentity AggregateRootId { get; set; }
 
         string ICommand.AggregateRootId => AggregateRootId?.ToString();
 

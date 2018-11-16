@@ -15,7 +15,7 @@ namespace Voguedi.Commands
     {
         #region Properties
 
-        new TIdentity AggregateRootId { get; }
+        new TIdentity AggregateRootId { get; set; }
 
         #endregion
     }
