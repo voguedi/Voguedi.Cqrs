@@ -38,7 +38,7 @@ namespace Voguedi.Messaging
         #region Private Fields
 
         readonly ITypeFinder typeFinder;
-        readonly ConcurrentDictionary<string, string> queueMapping = new ConcurrentDictionary<string, string>();
+        readonly ConcurrentDictionary<Type, Dictionary<string, string>> queueMapping = new ConcurrentDictionary<Type, Dictionary<string, string>>();
         readonly ConcurrentDictionary<Type, MessageSubscription> subscriptionMapping = new ConcurrentDictionary<Type, MessageSubscription>();
 
         #endregion
@@ -83,15 +83,30 @@ namespace Voguedi.Messaging
             return attributes;
         }
 
-        void RegisterQueue(string queueTopic, int queueCount)
+        void RegisterQueue(Type messageType, string queueTopic, int queueCount)
         {
+            var queues = new List<string>();
+
             if (queueCount == 1)
-                queueMapping.TryAdd(queueTopic, queueTopic);
+            {
+                queues.Add(queueTopic);
+            }
             else
             {
                 for (var i = 0; i < queueCount; i++)
-                    queueMapping.TryAdd($"{queueTopic}_{i}", $"{queueTopic}_{i}");
+                    queues.Add($"{queueTopic}_{i}");
             }
+
+            if (!queueMapping.TryGetValue(messageType, out var mapping))
+                mapping = new Dictionary<string, string>();
+
+            foreach (var queue in queues)
+            {
+                if (!mapping.ContainsKey(queue))
+                    mapping[queue] = queue;
+            }
+
+            queueMapping[messageType] = mapping;
         }
 
         void RegisterSubscription(Type messageType, string queueTopic, int queueCount) => subscriptionMapping.TryAdd(messageType, new MessageSubscription(queueTopic, queueCount));
@@ -100,7 +115,7 @@ namespace Voguedi.Messaging
 
         #region IMessageSubscriptionManager
 
-        public IReadOnlyDictionary<string, string> GetQueues() => queueMapping;
+        public IReadOnlyDictionary<string, string> GetQueues(Type messageBaseType) => queueMapping[messageBaseType];
 
         public string GetQueueTopic(IMessage message)
         {
@@ -128,7 +143,7 @@ namespace Voguedi.Messaging
                 attribute = mapping.Value;
                 queueTopic = $"{attribute.GroupName}.{attribute.Topic}";
                 queueCount = attribute.TopicQueueCount;
-                RegisterQueue(queueTopic, queueCount);
+                RegisterQueue(messageBaseType, queueTopic, queueCount);
                 RegisterSubscription(mapping.Key, queueTopic, queueCount);
             }
         }

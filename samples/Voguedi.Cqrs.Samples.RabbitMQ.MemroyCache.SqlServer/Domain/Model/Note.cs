@@ -15,8 +15,6 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Domain.Model
 
         #region Ctors
 
-        public Note() : base() { }
-
         public Note(string id) : base(id) { }
 
         public Note(string id, string title, string content) : this(id) => ApplyEvent(new NoteCreatedEvent(title, content));

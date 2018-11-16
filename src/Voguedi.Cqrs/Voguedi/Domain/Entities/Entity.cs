@@ -8,8 +8,6 @@ namespace Voguedi.Domain.Entities
     {
         #region Ctors
 
-        protected Entity() { }
-
         protected Entity(TIdentity id)
         {
             if (Equals(id, default(TIdentity)))

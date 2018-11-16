@@ -2,7 +2,7 @@
 
 namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Commands
 {
-    [CommandSubscriber("CommandTopic")]
+    [CommandSubscriber("note")]
     public class ModifyNoteCommand : Command<string>
     {
         #region Public Properties

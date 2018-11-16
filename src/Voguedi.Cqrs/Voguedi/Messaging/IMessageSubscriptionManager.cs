@@ -9,7 +9,7 @@ namespace Voguedi.Messaging
 
         void Register(Type messageBaseType, string defaultGroupName, int defaultTopicQueueCount);
 
-        IReadOnlyDictionary<string, string> GetQueues();
+        IReadOnlyDictionary<string, string> GetQueues(Type messageBaseType);
 
         string GetQueueTopic(IMessage message);
 

@@ -87,9 +87,10 @@ namespace Voguedi.Messaging
         {
             if (!started)
             {
-                subscriptionManager.Register(GetMessageBaseType(), defaultGroupName, defaultTopicQueueCount);
+                var baseType = GetMessageBaseType();
+                subscriptionManager.Register(baseType, defaultGroupName, defaultTopicQueueCount);
 
-                foreach (var queue in subscriptionManager.GetQueues())
+                foreach (var queue in subscriptionManager.GetQueues(baseType))
                 {
                     Task.Factory.StartNew(
                         () =>

@@ -2,7 +2,7 @@
 
 namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Domain.Events
 {
-    [EventSubscriber("EventTopic")]
+    [EventSubscriber("note")]
     public class NoteCreatedEvent : Event<string>
     {
         #region Public Properties
@@ -14,7 +14,7 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Domain.Events
         #endregion
 
         #region Ctors
-        
+
         public NoteCreatedEvent(string title, string content)
         {
             Title = title;

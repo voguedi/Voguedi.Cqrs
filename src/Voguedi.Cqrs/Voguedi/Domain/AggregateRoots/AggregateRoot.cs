@@ -19,8 +19,6 @@ namespace Voguedi.Domain.AggregateRoots
 
         #region Ctors
 
-        protected AggregateRoot(): base() { }
-
         protected AggregateRoot(TIdentity id) : base(id) { }
 
         #endregion
