@@ -50,8 +50,6 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             if (setupAction == null)
                 throw new ArgumentNullException(nameof(setupAction));
-
-            services.AddDependencyServices();
             
             services.TryAddSingleton<ICommandSender, CommandSender>();
             services.TryAddSingleton<ICommandProcessor, CommandProcessor>();

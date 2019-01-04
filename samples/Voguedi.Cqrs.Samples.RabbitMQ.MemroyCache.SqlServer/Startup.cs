@@ -27,6 +27,7 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+            services.AddDependencyServicesFromCurrentDomainDirectory();
             services.AddVoguedi(s =>
             {
                 s.UseRabbitMQ(o =>

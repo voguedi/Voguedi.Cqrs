@@ -5,10 +5,11 @@
     <RootNamespace />
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>voguedi</Authors>
+    <Version>1.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Voguedi.Utils.Json" Version="1.0.3" />
+    <PackageReference Include="Voguedi.Utils.Json" Version="1.1.0" />
   </ItemGroup>
 
   <ItemGroup>
