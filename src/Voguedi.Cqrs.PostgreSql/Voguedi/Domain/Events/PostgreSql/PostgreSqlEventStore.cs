@@ -34,11 +34,12 @@ namespace Voguedi.Domain.Events.PostgreSql
             CREATE SCHEMA IF NOT EXISTS ""{0}"";
             CREATE TABLE IF NOT EXISTS ""{0}"".""{1}""(
 	            ""Id"" VARCHAR(24) PRIMARY KEY NOT NULL,
+	            ""Timestamp"" TIMESTAMP NOT NULL,
+	            ""CommandId"" VARCHAR(24) NOT NULL,
 	            ""AggregateRootTypeName"" VARCHAR(256) NOT NULL,
 	            ""AggregateRootId"" VARCHAR(32) NOT NULL,
 	            ""Version"" BIGINT NOT NULL,
-	            ""CreatedOn"" TIMESTAMP NOT NULL,
-	            ""ModifiedOn"" TIMESTAMP NULL,
+                ""Events"" VARCHAR(MAX) NOT NULL
             );";
 
         #endregion
