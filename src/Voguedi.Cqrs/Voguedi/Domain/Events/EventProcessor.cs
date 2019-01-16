@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Voguedi.BackgroundWorkers;
 using Voguedi.DisposableObjects;
-using Voguedi.IdentityGeneration;
+using Voguedi.Utils;
 
 namespace Voguedi.Domain.Events
 {
@@ -25,18 +25,13 @@ namespace Voguedi.Domain.Events
 
         #region Ctors
 
-        public EventProcessor(
-            IProcessingEventQueueFactory queueFactory,
-            IBackgroundWorker backgroundWorker,
-            IStringIdentityGenerator identityGenerator,
-            ILogger<EventProcessor> logger,
-            VoguediOptions options)
+        public EventProcessor(IProcessingEventQueueFactory queueFactory, IBackgroundWorker backgroundWorker, ILogger<EventProcessor> logger, VoguediOptions options)
         {
             this.queueFactory = queueFactory;
             this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             expiration = options.MemoryQueueExpiration;
-            backgroundWorkerKey = $"{nameof(EventProcessor)}_{identityGenerator.Generate()}";
+            backgroundWorkerKey = $"{nameof(EventProcessor)}_{ObjectId.NewObjectId().ToString()}";
         }
 
         #endregion

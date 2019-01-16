@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 using Voguedi.AsyncExecution;
 using Voguedi.ObjectSerialization;
 using Voguedi.Stores;
-using Voguedi.Utilities;
+using Voguedi.Utils;
 
 namespace Voguedi.Domain.Events.SqlServer
 {
@@ -38,9 +38,9 @@ namespace Voguedi.Domain.Events.SqlServer
             IF OBJECT_ID(N'[{0}].[{1}]',N'U') IS NULL
             BEGIN
                 CREATE TABLE [{0}].[{1}](
-	                [Id] [varchar](24) NOT NULL,
+	                [Id] [bigint] NOT NULL,
 	                [Timestamp] [datetime] NOT NULL,
-	                [CommandId] [varchar](24) NOT NULL,
+	                [CommandId] [bigint] NOT NULL,
 	                [AggregateRootTypeName] [varchar](256) NOT NULL,
 	                [AggregateRootId] [varchar](32) NOT NULL,
 	                [Version] [bigint] NOT NULL,
@@ -74,11 +74,7 @@ namespace Voguedi.Domain.Events.SqlServer
         string GetTableName(string aggregateRootId)
         {
             if (tableCount > 1)
-            {
-                var hashCode = Utils.GetHashCode(aggregateRootId);
-                var tableNameIndex = hashCode & tableCount;
-                return $"[{schema}].[{tableName}_{tableNameIndex}]";
-            }
+                return $"[{schema}].[{tableName}_{Helper.GetServerIndex(aggregateRootId, tableCount)}]";
 
             return $"[{schema}].[{tableName}]";
         }
@@ -127,14 +123,8 @@ namespace Voguedi.Domain.Events.SqlServer
 
         #region IEventStore
 
-        public async Task<AsyncExecutedResult<EventStream>> GetAsync(string aggregateRootId, string commandId)
+        public async Task<AsyncExecutedResult<EventStream>> GetByCommandIdAsync(string aggregateRootId, long commandId)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
-            if (string.IsNullOrWhiteSpace(commandId))
-                throw new ArgumentNullException(nameof(commandId));
-
             try
             {
                 using (var connection = new SqlConnection(connectionString))
@@ -156,14 +146,8 @@ namespace Voguedi.Domain.Events.SqlServer
             }
         }
 
-        public async Task<AsyncExecutedResult<EventStream>> GetAsync(string aggregateRootId, long version)
+        public async Task<AsyncExecutedResult<EventStream>> GetByVersionAsync(string aggregateRootId, long version)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
-            if (version < -1L)
-                throw new ArgumentNullException(nameof(version));
-
             try
             {
                 using (var connection = new SqlConnection(connectionString))
@@ -191,18 +175,6 @@ namespace Voguedi.Domain.Events.SqlServer
             long minVersion = -1L,
             long maxVersion = long.MaxValue)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootTypeName))
-                throw new ArgumentNullException(nameof(aggregateRootTypeName));
-
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
-            if (minVersion < -1L)
-                throw new ArgumentOutOfRangeException(nameof(minVersion));
-
-            if (maxVersion < -1L)
-                throw new ArgumentOutOfRangeException(nameof(maxVersion));
-
             try
             {
                 using (var connection = new SqlConnection(connectionString))
@@ -226,9 +198,6 @@ namespace Voguedi.Domain.Events.SqlServer
 
         public async Task<AsyncExecutedResult<EventStreamSavedResult>> SaveAsync(EventStream stream)
         {
-            if (stream == null)
-                throw new ArgumentNullException(nameof(stream));
-
             try
             {
                 using (var connection = new SqlConnection(connectionString))

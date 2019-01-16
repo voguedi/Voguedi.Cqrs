@@ -27,7 +27,6 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
-            services.AddDependencyServicesFromCurrentDomainDirectory();
             services.AddVoguedi(s =>
             {
                 s.UseRabbitMQ(o =>
@@ -36,7 +35,6 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer
                     o.ExchangeName = "Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer";
                 });
                 s.UseSqlServer(@"Server=DESKTOP-GQ9I89D\MSSQLSERVER16;Database=Test;User Id=sa;Password=123;");
-                s.UseJson();
             });
             services.AddSingleton<INoteStore>(_ => new NoteStore(@"Server=DESKTOP-GQ9I89D\MSSQLSERVER16;Database=Test;User Id=sa;Password=123;"));
             services.AddSwaggerGen(s => s.SwaggerDoc("v1", new Info { Title = "Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer", Version = "v1" }));

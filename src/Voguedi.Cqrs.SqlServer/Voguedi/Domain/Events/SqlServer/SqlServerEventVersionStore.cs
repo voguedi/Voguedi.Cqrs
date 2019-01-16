@@ -6,17 +6,15 @@ using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Extensions.Logging;
 using Voguedi.AsyncExecution;
-using Voguedi.IdentityGeneration;
 using Voguedi.Stores;
-using Voguedi.Utilities;
+using Voguedi.Utils;
 
 namespace Voguedi.Domain.Events.SqlServer
 {
     class SqlServerEventVersionStore : IEventVersionStore, IStore
     {
         #region Private Fields
-
-        readonly IStringIdentityGenerator identityGenerator;
+        
         readonly ILogger logger;
         readonly string connectionString;
         readonly string schema;
@@ -33,7 +31,7 @@ namespace Voguedi.Domain.Events.SqlServer
             IF OBJECT_ID(N'[{0}].[{1}]',N'U') IS NULL
             BEGIN
                 CREATE TABLE [{0}].[{1}](
-	                [Id] [varchar](24) NOT NULL,
+	                [Id] [bigint] NOT NULL,
 	                [AggregateRootTypeName] [varchar](256) NOT NULL,
 	                [AggregateRootId] [varchar](32) NOT NULL,
 	                [Version] [bigint] NOT NULL,
@@ -49,9 +47,8 @@ namespace Voguedi.Domain.Events.SqlServer
 
         #region Ctors
 
-        public SqlServerEventVersionStore(IStringIdentityGenerator identityGenerator, ILogger<SqlServerEventVersionStore> logger, SqlServerOptions options)
+        public SqlServerEventVersionStore(ILogger<SqlServerEventVersionStore> logger, SqlServerOptions options)
         {
-            this.identityGenerator = identityGenerator;
             this.logger = logger;
             connectionString = options.ConnectionString;
             schema = options.Schema;
@@ -66,11 +63,7 @@ namespace Voguedi.Domain.Events.SqlServer
         string GetTableName(string aggregateRootId)
         {
             if (tableCount > 1)
-            {
-                var hashCode = Utils.GetHashCode(aggregateRootId);
-                var tableNameIndex = hashCode & tableCount;
-                return $"[{schema}].[{tableName}_{tableNameIndex}]";
-            }
+                return $"[{schema}].[{tableName}_{Helper.GetServerIndex(aggregateRootId, tableCount)}]";
 
             return $"[{schema}].[{tableName}]";
         }
@@ -87,7 +80,7 @@ namespace Voguedi.Domain.Events.SqlServer
                         BuildSql(createSql, aggregateRootId),
                         new
                         {
-                            Id = identityGenerator.Generate(),
+                            Id = SnowflakeId.Instance.NewId(),
                             AggregateRootTypeName = aggregateRootTypeName,
                             AggregateRootId = aggregateRootId,
                             Version = 1L,
@@ -134,12 +127,6 @@ namespace Voguedi.Domain.Events.SqlServer
 
         public async Task<AsyncExecutedResult<long>> GetAsync(string aggregateRootTypeName, string aggregateRootId)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootTypeName))
-                throw new ArgumentNullException(nameof(aggregateRootTypeName));
-
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
             try
             {
                 using (var connection = new SqlConnection(connectionString))
@@ -159,15 +146,6 @@ namespace Voguedi.Domain.Events.SqlServer
 
         public Task<AsyncExecutedResult> SaveAsync(string aggregateRootTypeName, string aggregateRootId, long version)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootTypeName))
-                throw new ArgumentNullException(nameof(aggregateRootTypeName));
-
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
-            if (version < -1L)
-                throw new ArgumentOutOfRangeException(nameof(version));
-
             if (version == 1L)
                 return CreateAsync(aggregateRootTypeName, aggregateRootId);
 

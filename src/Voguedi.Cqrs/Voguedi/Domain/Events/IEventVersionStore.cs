@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Voguedi.AsyncExecution;
+using Voguedi.AspectCore;
 
 namespace Voguedi.Domain.Events
 {
@@ -7,9 +8,9 @@ namespace Voguedi.Domain.Events
     {
         #region Methods
 
-        Task<AsyncExecutedResult> SaveAsync(string aggregateRootTypeName, string aggregateRootId, long version);
+        Task<AsyncExecutedResult> SaveAsync([NotEmpty] string aggregateRootTypeName, [NotEmpty] string aggregateRootId, long version);
 
-        Task<AsyncExecutedResult<long>> GetAsync(string aggregateRootTypeName, string aggregateRootId);
+        Task<AsyncExecutedResult<long>> GetAsync([NotEmpty] string aggregateRootTypeName, [NotEmpty] string aggregateRootId);
 
         #endregion
     }

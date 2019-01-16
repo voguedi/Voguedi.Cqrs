@@ -46,18 +46,6 @@ namespace Voguedi.Domain.Events.MongoDB
             long minVersion = -1L,
             long maxVersion = long.MaxValue)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootTypeName))
-                throw new ArgumentNullException(nameof(aggregateRootTypeName));
-
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
-            if (minVersion < -1L)
-                throw new ArgumentOutOfRangeException(nameof(minVersion));
-
-            if (maxVersion < -1L)
-                throw new ArgumentOutOfRangeException(nameof(maxVersion));
-
             try
             {
                 var streams = GetAll().Where(e =>
@@ -82,14 +70,8 @@ namespace Voguedi.Domain.Events.MongoDB
             }
 }
 
-        public Task<AsyncExecutedResult<EventStream>> GetAsync(string aggregateRootId, string commandId)
+        public Task<AsyncExecutedResult<EventStream>> GetByCommandIdAsync(string aggregateRootId, long commandId)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
-            if (string.IsNullOrWhiteSpace(commandId))
-                throw new ArgumentNullException(nameof(commandId));
-
             try
             {
                 var stream = GetAll().FirstOrDefault(e => e.AggregateRootId == aggregateRootId && e.CommandId == commandId);
@@ -110,14 +92,8 @@ namespace Voguedi.Domain.Events.MongoDB
             }
 }
 
-        public Task<AsyncExecutedResult<EventStream>> GetAsync(string aggregateRootId, long version)
+        public Task<AsyncExecutedResult<EventStream>> GetByVersionAsync(string aggregateRootId, long version)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
-            if (version < -1L)
-                throw new ArgumentNullException(nameof(version));
-
             try
             {
                 var stream = GetAll().FirstOrDefault(e => e.AggregateRootId == aggregateRootId && e.Version == version);
@@ -140,9 +116,6 @@ namespace Voguedi.Domain.Events.MongoDB
 
         public async Task<AsyncExecutedResult<EventStreamSavedResult>> SaveAsync(EventStream stream)
         {
-            if (stream == null)
-                throw new ArgumentNullException(nameof(stream));
-
             if (GetAll().Any(e => e.AggregateRootId == stream.AggregateRootId && e.Version == stream.Version))
             {
                 logger.LogWarning($"事件存储失败，存在相同版本！ {stream}");

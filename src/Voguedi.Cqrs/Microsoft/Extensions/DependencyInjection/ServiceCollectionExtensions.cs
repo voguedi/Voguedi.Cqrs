@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -19,26 +17,21 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         #region Private Methods
 
-        static IEnumerable<Type> GetImplementations(Type service) => TypeFinder.Instance.GetTypes().Where(t => t.IsClass && !t.IsAbstract && service.IsAssignableFrom(t));
-
-        static IEnumerable<Type> GetServices(Type service, Type implementation)
-            => implementation.GetTypeInfo().GetInterfaces().Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == service);
-
-        static void AddCommandHandler(IServiceCollection services)
+        static void AddCommandHandlers(IServiceCollection services, params Assembly[] assemblies)
         {
-            foreach (var implementation in GetImplementations(typeof(ICommandHandler)))
+            foreach (var implementationType in new TypeFinder().GetTypesBySpecifiedType(typeof(ICommandHandler<>), assemblies))
             {
-                foreach (var service in GetServices(typeof(ICommandHandler<>), implementation))
-                    services.TryAddTransient(service, implementation);
+                foreach (var serviceType in implementationType.GetTypeInfo().ImplementedInterfaces)
+                    services.TryAddEnumerable(ServiceDescriptor.Transient(serviceType, implementationType));
             }
         }
 
-        static void AddEventHandler(IServiceCollection services)
+        static void AddEventHandlers(IServiceCollection services, params Assembly[] assemblies)
         {
-            foreach (var implementation in GetImplementations(typeof(IEventHandler)))
+            foreach (var implementationType in new TypeFinder().GetTypesBySpecifiedType(typeof(IEventHandler<>), assemblies))
             {
-                foreach (var service in GetServices(typeof(IEventHandler<>), implementation))
-                    services.TryAddTransient(service, implementation);
+                foreach (var serviceType in implementationType.GetTypeInfo().ImplementedInterfaces)
+                    services.TryAddEnumerable(ServiceDescriptor.Transient(serviceType, implementationType));
             }
         }
 
@@ -46,7 +39,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
         #region Public Methods
 
-        public static IServiceCollection AddVoguedi(this IServiceCollection services, Action<VoguediOptions> setupAction)
+        public static IVoguediBuilder AddVoguedi(this IServiceCollection services, Action<VoguediOptions> setupAction)
         {
             if (setupAction == null)
                 throw new ArgumentNullException(nameof(setupAction));
@@ -56,7 +49,6 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IProcessingCommandHandler, ProcessingCommandHandler>();
             services.TryAddSingleton<IProcessingCommandHandlerContextFactory, ProcessingCommandHandlerContextFactory>();
             services.TryAddSingleton<IProcessingCommandQueueFactory, ProcessingCommandQueueFactory>();
-            AddCommandHandler(services);
 
             services.TryAddSingleton<ICommittingEventHandler, CommittingEventHandler>();
             services.TryAddSingleton<ICommittingEventQueueFactory, CommittingEventQueueFactory>();
@@ -66,7 +58,6 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IEventSubscriber, EventSubscriber>();
             services.TryAddSingleton<IProcessingEventHandler, ProcessingEventHandler>();
             services.TryAddSingleton<IProcessingEventQueueFactory, ProcessingEventQueueFactory>();
-            AddEventHandler(services);
             
             services.AddSingleton<ICache, MemoryCache>();
             services.AddSingleton<IRepository, EventSourcedRepository>();
@@ -82,14 +73,21 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IBootstrapper, Bootstrapper>();
             services.AddTransient<IStartupFilter, StartupFilter>();
 
+            services.AddJson();
+
             var options = new VoguediOptions();
             setupAction(options);
 
             foreach (var registrar in options.Registrars)
                 registrar.Register(services);
 
+            var assemblies = options.Assemblies;
+            AddCommandHandlers(services, assemblies);
+            AddEventHandlers(services, assemblies);
+            services.AddAspectCore(options.AspectConfig);
+            services.AddUitls(assemblies);
             services.AddSingleton(options);
-            return services;
+            return new VoguediBuilder(services);
         }
 
         #endregion

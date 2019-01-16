@@ -7,7 +7,7 @@ namespace Voguedi.Domain.Events
     {
         #region Public Properties
 
-        public string CommandId { get; set; }
+        public long CommandId { get; set; }
 
         public string AggregateRootTypeName { get; set; }
 

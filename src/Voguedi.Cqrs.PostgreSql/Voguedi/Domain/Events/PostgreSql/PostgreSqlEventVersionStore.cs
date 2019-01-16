@@ -6,17 +6,15 @@ using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Extensions.Logging;
 using Voguedi.AsyncExecution;
-using Voguedi.IdentityGeneration;
 using Voguedi.Stores;
-using Voguedi.Utilities;
+using Voguedi.Utils;
 
 namespace Voguedi.Domain.Events.PostgreSql
 {
     class PostgreSqlEventVersionStore : IEventVersionStore, IStore
     {
         #region Private Fields
-
-        readonly IStringIdentityGenerator identityGenerator;
+        
         readonly ILogger logger;
         readonly string connectionString;
         readonly string schema;
@@ -28,7 +26,7 @@ namespace Voguedi.Domain.Events.PostgreSql
         const string initializeSql = @"
             CREATE SCHEMA IF NOT EXISTS ""{0}"";
             CREATE TABLE IF NOT EXISTS ""{0}"".""{1}""(
-	            ""Id"" VARCHAR(24) PRIMARY KEY NOT NULL,
+	            ""Id"" BIGINT PRIMARY KEY NOT NULL,
 	            ""AggregateRootTypeName"" VARCHAR(256) NOT NULL,
 	            ""AggregateRootId"" VARCHAR(32) NOT NULL,
 	            ""Version"" BIGINT NOT NULL,
@@ -40,9 +38,8 @@ namespace Voguedi.Domain.Events.PostgreSql
 
         #region Ctors
 
-        public PostgreSqlEventVersionStore(IStringIdentityGenerator identityGenerator, ILogger<PostgreSqlEventVersionStore> logger, PostgreSqlOptions options)
+        public PostgreSqlEventVersionStore(ILogger<PostgreSqlEventVersionStore> logger, PostgreSqlOptions options)
         {
-            this.identityGenerator = identityGenerator;
             this.logger = logger;
             connectionString = options.ConnectionString;
             schema = options.Schema;
@@ -57,11 +54,7 @@ namespace Voguedi.Domain.Events.PostgreSql
         string GetTableName(string aggregateRootId)
         {
             if (tableCount > 1)
-            {
-                var hashCode = Utils.GetHashCode(aggregateRootId);
-                var tableNameIndex = hashCode & tableCount;
-                return $@"""{schema}"".""{tableName}_{tableNameIndex}""";
-            }
+                return $@"""{schema}"".""{tableName}_{Helper.GetServerIndex(aggregateRootId, tableCount)}""";
 
             return $@"""{schema}"".""{tableName}""";
         }
@@ -78,7 +71,7 @@ namespace Voguedi.Domain.Events.PostgreSql
                         BuildSql(createSql, aggregateRootId),
                         new
                         {
-                            Id = identityGenerator.Generate(),
+                            Id = SnowflakeId.Instance.NewId(),
                             AggregateRootTypeName = aggregateRootTypeName,
                             AggregateRootId = aggregateRootId,
                             Version = 1L,
@@ -125,12 +118,6 @@ namespace Voguedi.Domain.Events.PostgreSql
 
         public async Task<AsyncExecutedResult<long>> GetAsync(string aggregateRootTypeName, string aggregateRootId)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootTypeName))
-                throw new ArgumentNullException(nameof(aggregateRootTypeName));
-
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
             try
             {
                 using (var connection = new SqlConnection(connectionString))
@@ -151,15 +138,6 @@ namespace Voguedi.Domain.Events.PostgreSql
 
         public Task<AsyncExecutedResult> SaveAsync(string aggregateRootTypeName, string aggregateRootId, long version)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootTypeName))
-                throw new ArgumentNullException(nameof(aggregateRootTypeName));
-
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
-            if (version < -1L)
-                throw new ArgumentOutOfRangeException(nameof(version));
-
             if (version == 1L)
                 return CreateAsync(aggregateRootTypeName, aggregateRootId);
 

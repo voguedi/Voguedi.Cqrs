@@ -6,17 +6,15 @@ using Dapper;
 using Microsoft.Extensions.Logging;
 using MySql.Data.MySqlClient;
 using Voguedi.AsyncExecution;
-using Voguedi.IdentityGeneration;
 using Voguedi.Stores;
-using Voguedi.Utilities;
+using Voguedi.Utils;
 
 namespace Voguedi.Domain.Events.MySql
 {
     class MySqlEventVersionStore : IEventVersionStore, IStore
     {
         #region Private Fields
-
-        readonly IStringIdentityGenerator identityGenerator;
+        
         readonly ILogger logger;
         readonly string connectionString;
         readonly string schema;
@@ -27,7 +25,7 @@ namespace Voguedi.Domain.Events.MySql
         const string modifySql = "UPDATE {0} SET `Version` = @Version, `ModifiedOn` = @ModifiedOn WHERE `AggregateRootTypeName` = @AggregateRootTypeName AND `AggregateRootId` = @AggregateRootId AND `Version` = (@Version - 1)";
         const string initializeSql = @"
             CREATE TABLE IF NOT EXISTS {0} (
-                `Id` varchar(24) NOT NULL,
+                `Id` bigint NOT NULL,
                 `AggregateRootTypeName` varchar(256) NOT NULL,
                 `AggregateRootId` varchar(32) NOT NULL,
                 `Version` bigint NOT NULL,
@@ -40,9 +38,8 @@ namespace Voguedi.Domain.Events.MySql
 
         #region Ctors
 
-        public MySqlEventVersionStore(IStringIdentityGenerator identityGenerator, ILogger<MySqlEventVersionStore> logger, MySqlOptions options)
+        public MySqlEventVersionStore(ILogger<MySqlEventVersionStore> logger, MySqlOptions options)
         {
-            this.identityGenerator = identityGenerator;
             this.logger = logger;
             connectionString = options.ConnectionString;
             schema = options.Schema;
@@ -57,11 +54,7 @@ namespace Voguedi.Domain.Events.MySql
         string GetTableName(string aggregateRootId)
         {
             if (tableCount > 1)
-            {
-                var hashCode = Utils.GetHashCode(aggregateRootId);
-                var tableNameIndex = hashCode & tableCount;
-                return $"`{schema}`.`{tableName}_{tableNameIndex}`";
-            }
+                return $"`{schema}`.`{tableName}_{Helper.GetServerIndex(aggregateRootId, tableCount)}`";
 
             return $"`{schema}`.`{tableName}`";
         }
@@ -78,7 +71,7 @@ namespace Voguedi.Domain.Events.MySql
                         BuildSql(createSql, aggregateRootId),
                         new
                         {
-                            Id = identityGenerator.Generate(),
+                            Id = SnowflakeId.Instance.NewId(),
                             AggregateRootTypeName = aggregateRootTypeName,
                             AggregateRootId = aggregateRootId,
                             Version = 1L,
@@ -125,12 +118,6 @@ namespace Voguedi.Domain.Events.MySql
 
         public async Task<AsyncExecutedResult<long>> GetAsync(string aggregateRootTypeName, string aggregateRootId)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootTypeName))
-                throw new ArgumentNullException(nameof(aggregateRootTypeName));
-
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
             try
             {
                 using (var connection = new MySqlConnection(connectionString))
@@ -150,15 +137,6 @@ namespace Voguedi.Domain.Events.MySql
 
         public Task<AsyncExecutedResult> SaveAsync(string aggregateRootTypeName, string aggregateRootId, long version)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootTypeName))
-                throw new ArgumentNullException(nameof(aggregateRootTypeName));
-
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
-            if (version < -1L)
-                throw new ArgumentOutOfRangeException(nameof(version));
-
             if (version == 1L)
                 return CreateAsync(aggregateRootTypeName, aggregateRootId);
 

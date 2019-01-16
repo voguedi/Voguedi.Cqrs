@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Voguedi.IdentityGeneration;
+using Voguedi.Utils;
 
 namespace Voguedi.Domain.Events
 {
@@ -9,11 +9,11 @@ namespace Voguedi.Domain.Events
     {
         #region Public Properties
 
-        public string Id { get; }
+        public long Id { get; }
 
         public DateTime Timestamp { get; }
 
-        public string CommandId { get; }
+        public long CommandId { get; }
 
         public string AggregateRootTypeName { get; }
 
@@ -27,7 +27,7 @@ namespace Voguedi.Domain.Events
 
         #region Ctors
         
-        public EventStream(string id, DateTime timestamp, string commandId, string aggregateRootTypeName, string aggregateRootId, long version, IReadOnlyList<IEvent> events)
+        public EventStream(long id, DateTime timestamp, long commandId, string aggregateRootTypeName, string aggregateRootId, long version, IReadOnlyList<IEvent> events)
         {
             foreach (var e in events)
             {
@@ -44,8 +44,8 @@ namespace Voguedi.Domain.Events
             Events = events;
         }
 
-        public EventStream(string commandId, string aggregateRootTypeName, string aggregateRootId, long version, IReadOnlyList<IEvent> events)
-            : this(StringIdentityGenerator.Instance.Generate(), DateTime.UtcNow, commandId, aggregateRootTypeName, aggregateRootId, version, events)
+        public EventStream(long commandId, string aggregateRootTypeName, string aggregateRootId, long version, IReadOnlyList<IEvent> events)
+            : this(SnowflakeId.Instance.NewId(), DateTime.UtcNow, commandId, aggregateRootTypeName, aggregateRootId, version, events)
         { }
 
         #endregion

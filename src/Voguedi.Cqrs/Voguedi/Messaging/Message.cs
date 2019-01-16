@@ -1,5 +1,5 @@
 ﻿using System;
-using Voguedi.IdentityGeneration;
+using Voguedi.Utils;
 
 namespace Voguedi.Messaging
 {
@@ -9,7 +9,7 @@ namespace Voguedi.Messaging
 
         protected Message()
         {
-            Id = StringIdentityGenerator.Instance.Generate();
+            Id = SnowflakeId.Instance.NewId();
             Timestamp = DateTime.UtcNow;
         }
 
@@ -17,7 +17,7 @@ namespace Voguedi.Messaging
 
         #region IMessage
 
-        public string Id { get; set; }
+        public long Id { get; set; }
 
         public DateTime Timestamp { get; set; }
 

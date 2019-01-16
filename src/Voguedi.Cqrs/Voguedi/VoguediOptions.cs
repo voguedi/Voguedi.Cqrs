@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
+using AspectCore.Configuration;
 
 namespace Voguedi
 {
@@ -14,6 +16,10 @@ namespace Voguedi
         #region Internal Properties
 
         internal IReadOnlyList<IServiceRegistrar> Registrars => registrars;
+
+        internal Assembly[] Assemblies { get; set; }
+
+        internal Action<IAspectConfiguration> AspectConfig { get; set; }
 
         #endregion
 
@@ -40,6 +46,10 @@ namespace Voguedi
 
             registrars.Add(registrar);
         }
+
+        public void RegisterAssemblies(params Assembly[] assemblies) => Assemblies = assemblies;
+
+        public void RegisterAspectCore(Action<IAspectConfiguration> aspectConfig) => AspectConfig = aspectConfig;
 
         #endregion
     }

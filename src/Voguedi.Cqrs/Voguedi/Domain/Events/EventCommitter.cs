@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using Voguedi.BackgroundWorkers;
 using Voguedi.DisposableObjects;
 using Voguedi.Domain.Caching;
-using Voguedi.IdentityGeneration;
+using Voguedi.Utils;
 
 namespace Voguedi.Domain.Events
 {
@@ -28,20 +28,14 @@ namespace Voguedi.Domain.Events
 
         #region Ctors
 
-        public EventCommitter(
-            ICommittingEventQueueFactory queueFactory,
-            ICache cache,
-            IBackgroundWorker backgroundWorker,
-            IStringIdentityGenerator identityGenerator,
-            ILogger<EventCommitter> logger,
-            VoguediOptions options)
+        public EventCommitter(ICommittingEventQueueFactory queueFactory, ICache cache, IBackgroundWorker backgroundWorker, ILogger<EventCommitter> logger, VoguediOptions options)
         {
             this.queueFactory = queueFactory;
             this.cache = cache;
             this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             expiration = options.MemoryQueueExpiration;
-            backgroundWorkerKey = $"{nameof(EventCommitter)}_{identityGenerator.Generate()}";
+            backgroundWorkerKey = $"{nameof(EventCommitter)}_{ObjectId.NewObjectId().ToString()}";
         }
 
         #endregion

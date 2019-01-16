@@ -6,7 +6,7 @@ namespace Voguedi.Messaging
     {
         #region Properties
 
-        string Id { get; set; }
+        long Id { get; set; }
 
         DateTime Timestamp { get; set; }
 

@@ -7,8 +7,8 @@ using Voguedi.BackgroundWorkers;
 using Voguedi.DisposableObjects;
 using Voguedi.Domain.AggregateRoots;
 using Voguedi.Domain.Repositories;
-using Voguedi.IdentityGeneration;
 using Voguedi.Services;
+using Voguedi.Utils;
 
 namespace Voguedi.Domain.Caching
 {
@@ -62,13 +62,13 @@ namespace Voguedi.Domain.Caching
 
         #region Ctors
 
-        public MemoryCache(IRepository repository, IBackgroundWorker backgroundWorker, IStringIdentityGenerator identityGenerator, ILogger<MemoryCache> logger, VoguediOptions options)
+        public MemoryCache(IRepository repository, IBackgroundWorker backgroundWorker, ILogger<MemoryCache> logger, VoguediOptions options)
         {
             this.repository = repository;
             this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             expiration = options.AggregateRootExpiration;
-            backgroundWorkerKey = $"{nameof(MemoryCache)}_{identityGenerator.Generate()}";
+            backgroundWorkerKey = $"{nameof(MemoryCache)}_{ObjectId.NewObjectId().ToString()}";
         }
 
         #endregion

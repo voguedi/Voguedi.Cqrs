@@ -4,8 +4,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using Voguedi.AsyncExecution;
-using Voguedi.IdentityGeneration;
 using Voguedi.MongoDB;
+using Voguedi.Utils;
 
 namespace Voguedi.Domain.Events.MongoDB
 {
@@ -17,7 +17,7 @@ namespace Voguedi.Domain.Events.MongoDB
         {
             #region Public Properties
 
-            public string Id { get; set; }
+            public long Id { get; set; }
 
             public string AggregateRootTypeName { get; set; }
 
@@ -37,7 +37,6 @@ namespace Voguedi.Domain.Events.MongoDB
         #region Private Fields
 
         readonly IMongoDBContext dbContext;
-        readonly IStringIdentityGenerator identityGenerator;
         readonly ILogger logger;
         readonly IMongoCollection<EventVersionDescriptor> collection;
         readonly IClientSessionHandle session;
@@ -46,10 +45,9 @@ namespace Voguedi.Domain.Events.MongoDB
 
         #region Ctors
 
-        public MongoDBEventVersionStore(IMongoDBContext dbContext, IStringIdentityGenerator identityGenerator, ILogger<MongoDBEventVersionStore> logger)
+        public MongoDBEventVersionStore(IMongoDBContext dbContext, ILogger<MongoDBEventVersionStore> logger)
         {
             this.dbContext = dbContext;
-            this.identityGenerator = identityGenerator;
             collection = dbContext.Database.GetCollection<EventVersionDescriptor>("EventVersions");
             session = dbContext.Session;
             this.logger = logger;
@@ -70,7 +68,7 @@ namespace Voguedi.Domain.Events.MongoDB
                     AggregateRootId = aggregateRootId,
                     AggregateRootTypeName = aggregateRootTypeName,
                     CreatedOn = DateTime.UtcNow,
-                    Id = identityGenerator.Generate(),
+                    Id = SnowflakeId.Instance.NewId(),
                     Version = 1
                 };
                 await collection.InsertOneAsync(session, descriptor);
@@ -115,12 +113,6 @@ namespace Voguedi.Domain.Events.MongoDB
 
         public Task<AsyncExecutedResult<long>> GetAsync(string aggregateRootTypeName, string aggregateRootId)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootTypeName))
-                throw new ArgumentNullException(nameof(aggregateRootTypeName));
-
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
             try
             {
                 var descriptor = GetAll().FirstOrDefault(d => d.AggregateRootTypeName == aggregateRootTypeName && d.AggregateRootId == aggregateRootId);
@@ -143,15 +135,6 @@ namespace Voguedi.Domain.Events.MongoDB
 
         public Task<AsyncExecutedResult> SaveAsync(string aggregateRootTypeName, string aggregateRootId, long version)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootTypeName))
-                throw new ArgumentNullException(nameof(aggregateRootTypeName));
-
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
-            if (version < -1L)
-                throw new ArgumentOutOfRangeException(nameof(version));
-
             if (version == 1L)
                 return CreateAsync(aggregateRootTypeName, aggregateRootId);
 

@@ -10,7 +10,7 @@ using Npgsql;
 using Voguedi.AsyncExecution;
 using Voguedi.ObjectSerialization;
 using Voguedi.Stores;
-using Voguedi.Utilities;
+using Voguedi.Utils;
 
 namespace Voguedi.Domain.Events.PostgreSql
 {
@@ -33,9 +33,9 @@ namespace Voguedi.Domain.Events.PostgreSql
         const string initializeSql = @"
             CREATE SCHEMA IF NOT EXISTS ""{0}"";
             CREATE TABLE IF NOT EXISTS ""{0}"".""{1}""(
-	            ""Id"" VARCHAR(24) PRIMARY KEY NOT NULL,
+	            ""Id"" BIGINT PRIMARY KEY NOT NULL,
 	            ""Timestamp"" TIMESTAMP NOT NULL,
-	            ""CommandId"" VARCHAR(24) NOT NULL,
+	            ""CommandId"" BIGINT NOT NULL,
 	            ""AggregateRootTypeName"" VARCHAR(256) NOT NULL,
 	            ""AggregateRootId"" VARCHAR(32) NOT NULL,
 	            ""Version"" BIGINT NOT NULL,
@@ -63,11 +63,7 @@ namespace Voguedi.Domain.Events.PostgreSql
         string GetTableName(string aggregateRootId)
         {
             if (tableCount > 1)
-            {
-                var hashCode = Utils.GetHashCode(aggregateRootId);
-                var tableNameIndex = hashCode & tableCount;
-                return $@"""{schema}"".""{tableName}_{tableNameIndex}""";
-            }
+                return $@"""{schema}"".""{tableName}_{Helper.GetServerIndex(aggregateRootId, tableCount)}""";
 
             return $@"""{schema}"".""{tableName}""";
         }
@@ -116,14 +112,8 @@ namespace Voguedi.Domain.Events.PostgreSql
 
         #region IEventStore
 
-        public async Task<AsyncExecutedResult<EventStream>> GetAsync(string aggregateRootId, string commandId)
+        public async Task<AsyncExecutedResult<EventStream>> GetByCommandIdAsync(string aggregateRootId, long commandId)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
-            if (string.IsNullOrWhiteSpace(commandId))
-                throw new ArgumentNullException(nameof(commandId));
-
             try
             {
                 using (var connection = new NpgsqlConnection(connectionString))
@@ -145,14 +135,8 @@ namespace Voguedi.Domain.Events.PostgreSql
             }
         }
 
-        public async Task<AsyncExecutedResult<EventStream>> GetAsync(string aggregateRootId, long version)
+        public async Task<AsyncExecutedResult<EventStream>> GetByVersionAsync(string aggregateRootId, long version)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
-            if (version < -1L)
-                throw new ArgumentNullException(nameof(version));
-
             try
             {
                 using (var connection = new NpgsqlConnection(connectionString))
@@ -180,18 +164,6 @@ namespace Voguedi.Domain.Events.PostgreSql
             long minVersion = -1L,
             long maxVersion = long.MaxValue)
         {
-            if (string.IsNullOrWhiteSpace(aggregateRootTypeName))
-                throw new ArgumentNullException(nameof(aggregateRootTypeName));
-
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentNullException(nameof(aggregateRootId));
-
-            if (minVersion < -1L)
-                throw new ArgumentOutOfRangeException(nameof(minVersion));
-
-            if (maxVersion < -1L)
-                throw new ArgumentOutOfRangeException(nameof(maxVersion));
-
             try
             {
                 using (var connection = new NpgsqlConnection(connectionString))
@@ -215,9 +187,6 @@ namespace Voguedi.Domain.Events.PostgreSql
 
         public async Task<AsyncExecutedResult<EventStreamSavedResult>> SaveAsync(EventStream stream)
         {
-            if (stream == null)
-                throw new ArgumentNullException(nameof(stream));
-
             try
             {
                 using (var connection = new NpgsqlConnection(connectionString))

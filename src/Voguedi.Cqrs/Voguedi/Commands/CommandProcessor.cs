@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Voguedi.BackgroundWorkers;
 using Voguedi.DisposableObjects;
-using Voguedi.IdentityGeneration;
+using Voguedi.Utils;
 
 namespace Voguedi.Commands
 {
@@ -28,7 +28,6 @@ namespace Voguedi.Commands
         public CommandProcessor(
             IProcessingCommandQueueFactory queueFactory,
             IBackgroundWorker backgroundWorker,
-            IStringIdentityGenerator identityGenerator,
             ILogger<CommandProcessor> logger,
             VoguediOptions options)
         {
@@ -36,7 +35,7 @@ namespace Voguedi.Commands
             this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             expiration = options.MemoryQueueExpiration;
-            backgroundWorkerKey = $"{nameof(CommandProcessor)}_{identityGenerator.Generate()}";
+            backgroundWorkerKey = $"{nameof(CommandProcessor)}_{ObjectId.NewObjectId().ToString()}";
         }
 
         #endregion

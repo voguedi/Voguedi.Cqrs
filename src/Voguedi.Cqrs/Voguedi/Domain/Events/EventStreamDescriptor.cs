@@ -6,11 +6,11 @@ namespace Voguedi.Domain.Events
     {
         #region Public Properties
 
-        public string Id { get; set; }
+        public long Id { get; set; }
 
         public DateTime Timestamp { get; set; }
 
-        public string CommandId { get; set; }
+        public long CommandId { get; set; }
 
         public string AggregateRootTypeName { get; set; }
 

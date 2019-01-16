@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
+using Voguedi.Utils;
 using Voguedi.Reflection;
-using Voguedi.Utilities;
 
 namespace Voguedi.Messaging
 {
@@ -38,6 +37,7 @@ namespace Voguedi.Messaging
         #region Private Fields
 
         readonly ITypeFinder typeFinder;
+        readonly Assembly[] assemblies;
         readonly ConcurrentDictionary<Type, Dictionary<string, string>> queueMapping = new ConcurrentDictionary<Type, Dictionary<string, string>>();
         readonly ConcurrentDictionary<Type, MessageSubscription> subscriptionMapping = new ConcurrentDictionary<Type, MessageSubscription>();
 
@@ -45,7 +45,11 @@ namespace Voguedi.Messaging
 
         #region Ctors
         
-        public MessageSubscriptionManager(ITypeFinder typeFinder) => this.typeFinder = typeFinder;
+        public MessageSubscriptionManager(ITypeFinder typeFinder, VoguediOptions options)
+        {
+            this.typeFinder = typeFinder;
+            assemblies = options.Assemblies;
+        }
 
         #endregion
 
@@ -56,7 +60,7 @@ namespace Voguedi.Messaging
             var attributes = new Dictionary<Type, MessageSubscriberAttribute>();
             var attribute = default(MessageSubscriberAttribute);
 
-            foreach (var type in typeFinder.GetTypes().Where(t => t.IsClass && !t.IsAbstract && messageBaseType.IsAssignableFrom(t)))
+            foreach (var type in typeFinder.GetTypesBySpecifiedType(messageBaseType, assemblies))
             {
                 attribute = type.GetTypeInfo().GetCustomAttribute<MessageSubscriberAttribute>(true);
 
@@ -125,7 +129,7 @@ namespace Voguedi.Messaging
                     return subscription.QueueTopic;
 
                 var routingKey = message.GetRoutingKey();
-                var queueIndex = Utils.GetHashCode(routingKey) % subscription.QueueCount;
+                var queueIndex = Helper.GetHashCode(routingKey) % subscription.QueueCount;
                 return $"{subscription.QueueTopic}_{queueIndex}";
             }
 

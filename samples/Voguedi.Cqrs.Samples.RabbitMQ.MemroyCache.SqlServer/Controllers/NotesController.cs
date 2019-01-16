@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Voguedi.Commands;
 using Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Commands;
 using Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Stores;
-using Voguedi.IdentityGeneration;
+using Voguedi.Utils;
 
 namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Controllers
 {
@@ -16,17 +16,15 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Controllers
 
         readonly ICommandSender commandSender;
         readonly INoteStore store;
-        readonly IStringIdentityGenerator identityGenerator;
 
         #endregion
 
         #region Ctors
 
-        public NotesController(ICommandSender commandSender, INoteStore store, IStringIdentityGenerator identityGenerator)
+        public NotesController(ICommandSender commandSender, INoteStore store)
         {
             this.commandSender = commandSender;
             this.store = store;
-            this.identityGenerator = identityGenerator;
         }
 
         #endregion
@@ -42,7 +40,7 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Controllers
             if (string.IsNullOrWhiteSpace(content))
                 throw new ArgumentNullException(nameof(content));
 
-            var result = await commandSender.SendAsync(new CreateNoteCommand(identityGenerator.Generate(), title, content));
+            var result = await commandSender.SendAsync(new CreateNoteCommand(ObjectId.NewObjectId().ToString(), title, content));
 
             if (result.Succeeded)
                 return NoContent();
