@@ -8,9 +8,9 @@ using Dapper;
 using Microsoft.Extensions.Logging;
 using MySql.Data.MySqlClient;
 using Voguedi.AsyncExecution;
-using Voguedi.Utils;
 using Voguedi.ObjectSerialization;
 using Voguedi.Stores;
+using Voguedi.Utils;
 
 namespace Voguedi.Domain.Events.MySql
 {
