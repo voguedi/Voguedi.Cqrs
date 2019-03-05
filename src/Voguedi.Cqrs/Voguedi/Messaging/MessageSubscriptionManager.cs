@@ -13,14 +13,6 @@ namespace Voguedi.Messaging
 
         class MessageSubscription
         {
-            #region Public Properties
-
-            public string QueueTopic { get; }
-
-            public int QueueCount { get; }
-
-            #endregion
-
             #region Ctors
 
             public MessageSubscription(string queueTopic, int queueCount)
@@ -28,6 +20,14 @@ namespace Voguedi.Messaging
                 QueueTopic = queueTopic;
                 QueueCount = queueCount;
             }
+
+            #endregion
+
+            #region Public Properties
+
+            public string QueueTopic { get; }
+
+            public int QueueCount { get; }
 
             #endregion
         }

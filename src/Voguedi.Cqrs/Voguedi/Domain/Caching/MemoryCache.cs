@@ -18,14 +18,6 @@ namespace Voguedi.Domain.Caching
 
         class AggregateRootCacheItem
         {
-            #region Public Properties
-
-            public IEventSourcedAggregateRoot AggregateRoot { get; set; }
-
-            public DateTime Timestamp { get; set; }
-
-            #endregion
-
             #region Ctors
 
             public AggregateRootCacheItem(IEventSourcedAggregateRoot aggregateRoot, DateTime timestamp)
@@ -35,6 +27,14 @@ namespace Voguedi.Domain.Caching
             }
 
             public AggregateRootCacheItem(IEventSourcedAggregateRoot aggregateRoot) : this(aggregateRoot, DateTime.UtcNow) { }
+
+            #endregion
+
+            #region Public Properties
+
+            public IEventSourcedAggregateRoot AggregateRoot { get; set; }
+
+            public DateTime Timestamp { get; set; }
 
             #endregion
 

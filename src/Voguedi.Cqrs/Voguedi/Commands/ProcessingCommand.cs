@@ -5,6 +5,16 @@ namespace Voguedi.Commands
 {
     public sealed class ProcessingCommand
     {
+        #region Ctors
+
+        public ProcessingCommand(ICommand command, IMessageConsumer consumer)
+        {
+            Command = command;
+            Consumer = consumer;
+        }
+
+        #endregion
+
         #region Public Properties
 
         public ICommand Command { get; }
@@ -14,16 +24,6 @@ namespace Voguedi.Commands
         public IProcessingCommandQueue Queue { get; set; }
 
         public long QueueSequence { get; set; }
-
-        #endregion
-
-        #region Ctors
-
-        public ProcessingCommand(ICommand command, IMessageConsumer consumer)
-        {
-            Command = command;
-            Consumer = consumer;
-        }
 
         #endregion
 

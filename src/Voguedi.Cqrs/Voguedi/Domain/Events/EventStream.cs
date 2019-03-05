@@ -7,26 +7,8 @@ namespace Voguedi.Domain.Events
 {
     public sealed class EventStream
     {
-        #region Public Properties
-
-        public long Id { get; }
-
-        public DateTime Timestamp { get; }
-
-        public long CommandId { get; }
-
-        public string AggregateRootTypeName { get; }
-
-        public string AggregateRootId { get; }
-
-        public long Version { get; }
-
-        public IReadOnlyList<IEvent> Events { get; }
-
-        #endregion
-
         #region Ctors
-        
+
         public EventStream(long id, DateTime timestamp, long commandId, string aggregateRootTypeName, string aggregateRootId, long version, IReadOnlyList<IEvent> events)
         {
             foreach (var e in events)
@@ -47,6 +29,24 @@ namespace Voguedi.Domain.Events
         public EventStream(long commandId, string aggregateRootTypeName, string aggregateRootId, long version, IReadOnlyList<IEvent> events)
             : this(SnowflakeId.Instance.NewId(), DateTime.UtcNow, commandId, aggregateRootTypeName, aggregateRootId, version, events)
         { }
+
+        #endregion
+
+        #region Public Properties
+
+        public long Id { get; }
+
+        public DateTime Timestamp { get; }
+
+        public long CommandId { get; }
+
+        public string AggregateRootTypeName { get; }
+
+        public string AggregateRootId { get; }
+
+        public long Version { get; }
+
+        public IReadOnlyList<IEvent> Events { get; }
 
         #endregion
 

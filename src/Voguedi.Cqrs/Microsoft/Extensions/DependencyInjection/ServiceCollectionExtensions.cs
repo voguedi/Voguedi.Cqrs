@@ -39,7 +39,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
         #region Public Methods
 
-        public static IVoguediBuilder AddVoguedi(this IServiceCollection services, Action<VoguediOptions> setupAction)
+        public static IServiceCollection AddVoguedi(this IServiceCollection services, Action<VoguediOptions> setupAction)
         {
             if (setupAction == null)
                 throw new ArgumentNullException(nameof(setupAction));
@@ -84,10 +84,9 @@ namespace Microsoft.Extensions.DependencyInjection
             var assemblies = options.Assemblies;
             AddCommandHandlers(services, assemblies);
             AddEventHandlers(services, assemblies);
-            services.AddAspectCore(options.AspectConfig);
-            services.AddUitls(assemblies);
+            services.AddUitls();
             services.AddSingleton(options);
-            return new VoguediBuilder(services);
+            return services;
         }
 
         #endregion

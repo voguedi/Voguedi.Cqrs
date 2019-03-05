@@ -8,7 +8,7 @@ using Dapper;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Voguedi.AsyncExecution;
-using Voguedi.ObjectSerialization;
+using Voguedi.ObjectSerializing;
 using Voguedi.Stores;
 using Voguedi.Utils;
 

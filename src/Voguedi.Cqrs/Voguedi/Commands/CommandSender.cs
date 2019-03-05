@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Voguedi.AsyncExecution;
 using Voguedi.Messaging;
-using Voguedi.ObjectSerialization;
+using Voguedi.ObjectSerializing;
 
 namespace Voguedi.Commands
 {

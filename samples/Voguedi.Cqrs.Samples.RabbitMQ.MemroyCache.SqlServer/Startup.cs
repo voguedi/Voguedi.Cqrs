@@ -10,15 +10,15 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer
 {
     public class Startup
     {
-        #region Public Properties
-
-        public IConfiguration Configuration { get; }
-
-        #endregion
-
         #region Ctors
 
         public Startup(IConfiguration configuration) => Configuration = configuration;
+
+        #endregion
+
+        #region Public Properties
+
+        public IConfiguration Configuration { get; }
 
         #endregion
 

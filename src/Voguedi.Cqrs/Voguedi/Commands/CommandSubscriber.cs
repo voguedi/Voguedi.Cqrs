@@ -1,7 +1,7 @@
 ﻿using System;
 using Microsoft.Extensions.Logging;
 using Voguedi.Messaging;
-using Voguedi.ObjectSerialization;
+using Voguedi.ObjectSerializing;
 
 namespace Voguedi.Commands
 {

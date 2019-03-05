@@ -63,12 +63,11 @@ namespace Voguedi
 
             if (!cancellationTokenSource.IsCancellationRequested)
             {
-                applicationLifetime.ApplicationStopping.Register(
-                    () =>
-                    {
-                        foreach (var service in services)
-                            service.Dispose();
-                    });
+                applicationLifetime.ApplicationStopping.Register(() =>
+                {
+                    foreach (var service in services)
+                        service.Dispose();
+                });
 
                 if (!cancellationTokenSource.IsCancellationRequested)
                 {

@@ -5,16 +5,6 @@ namespace Voguedi.Domain.Events
 {
     public sealed class ProcessingEvent
     {
-        #region Public Properties
-
-        public EventStream Stream { get; }
-
-        public IMessageConsumer Consumer { get; }
-
-        public IProcessingEventQueue Queue { get; set; }
-
-        #endregion
-
         #region Ctors
 
         public ProcessingEvent(EventStream stream, IMessageConsumer consumer)
@@ -22,6 +12,16 @@ namespace Voguedi.Domain.Events
             Stream = stream;
             Consumer = consumer;
         }
+
+        #endregion
+
+        #region Public Properties
+
+        public EventStream Stream { get; }
+
+        public IMessageConsumer Consumer { get; }
+
+        public IProcessingEventQueue Queue { get; set; }
 
         #endregion
 

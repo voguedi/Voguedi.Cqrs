@@ -5,14 +5,6 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Commands
     [CommandSubscriber("note")]
     public class CreateNoteCommand : Command<string>
     {
-        #region Public Properties
-
-        public string Title { get; set; }
-
-        public string Content { get; set; }
-
-        #endregion
-
         #region Ctors
 
         public CreateNoteCommand() { }
@@ -23,6 +15,14 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Commands
             Title = title;
             Content = content;
         }
+
+        #endregion
+
+        #region Public Properties
+
+        public string Title { get; set; }
+
+        public string Content { get; set; }
 
         #endregion
     }

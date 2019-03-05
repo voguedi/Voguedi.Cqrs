@@ -5,14 +5,6 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Domain.Model
 {
     public class Note : AggregateRoot<string>
     {
-        #region Public Properties
-
-        public string Title { get; private set; }
-
-        public string Content { get; private set; }
-
-        #endregion
-
         #region Ctors
 
         public Note() { }
@@ -20,6 +12,14 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Domain.Model
         public Note(string id) : base(id) { }
 
         public Note(string id, string title, string content) : this(id) => ApplyEvent(new NoteCreatedEvent(title, content));
+
+        #endregion
+
+        #region Public Properties
+
+        public string Title { get; private set; }
+
+        public string Content { get; private set; }
 
         #endregion
 

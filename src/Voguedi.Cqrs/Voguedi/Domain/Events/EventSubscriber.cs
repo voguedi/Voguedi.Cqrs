@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Voguedi.Messaging;
-using Voguedi.ObjectSerialization;
+using Voguedi.ObjectSerializing;
 
 namespace Voguedi.Domain.Events
 {
