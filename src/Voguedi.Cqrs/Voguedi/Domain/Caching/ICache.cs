@@ -4,7 +4,7 @@ using Voguedi.Domain.AggregateRoots;
 
 namespace Voguedi.Domain.Caching
 {
-    public interface ICache
+    public interface ICache : IDisposable
     {
         #region Methods
 
@@ -13,6 +13,8 @@ namespace Voguedi.Domain.Caching
         Task SetAsync(IEventSourcedAggregateRoot aggregateRoot);
 
         Task RefreshAsync(Type aggregateRootType, string aggregateRootId);
+
+        void Start();
 
         #endregion
     }

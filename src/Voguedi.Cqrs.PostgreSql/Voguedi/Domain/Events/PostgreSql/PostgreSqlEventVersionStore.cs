@@ -6,12 +6,11 @@ using System.Threading.Tasks;
 using Dapper;
 using Microsoft.Extensions.Logging;
 using Voguedi.AsyncExecution;
-using Voguedi.Stores;
 using Voguedi.Utils;
 
 namespace Voguedi.Domain.Events.PostgreSql
 {
-    class PostgreSqlEventVersionStore : IEventVersionStore, IStore
+    class PostgreSqlEventVersionStore : IEventVersionStore
     {
         #region Private Fields
         
@@ -144,10 +143,6 @@ namespace Voguedi.Domain.Events.PostgreSql
             return ModifyAsync(aggregateRootTypeName, aggregateRootId, version);
         }
 
-        #endregion
-
-        #region IStore
-
         public async Task InitializeAsync(CancellationToken cancellationToken)
         {
             if (!cancellationToken.IsCancellationRequested)
@@ -162,15 +157,12 @@ namespace Voguedi.Domain.Events.PostgreSql
                 else
                     sql.AppendFormat(initializeSql, schema, tableName);
 
-                var count = 0;
-
                 try
                 {
                     using (var connection = new SqlConnection(connectionString))
-                        count = await connection.ExecuteAsync(sql.ToString());
+                        await connection.ExecuteAsync(sql.ToString());
 
-                    if (count > 0)
-                        logger.LogInformation($"已发布事件版本存储器初始化成功！ [Sql = {sql}]");
+                    logger.LogInformation($"已发布事件版本存储器初始化成功！ [Sql = {sql}]");
                 }
                 catch (Exception ex)
                 {

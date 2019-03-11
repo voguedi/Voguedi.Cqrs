@@ -3,7 +3,7 @@ using Voguedi.Services;
 
 namespace Voguedi.Domain.Events
 {
-    public interface IEventCommitter : IService
+    public interface IEventCommitter : IBackgroundWorkerService
     {
         #region Methods
 

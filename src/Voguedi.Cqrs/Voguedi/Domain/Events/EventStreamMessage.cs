@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using Voguedi.Messaging;
 
 namespace Voguedi.Domain.Events
@@ -22,6 +23,12 @@ namespace Voguedi.Domain.Events
         #region Message
 
         public override string GetRoutingKey() => AggregateRootId;
+
+        #endregion
+
+        #region Public Methods
+
+        public override string ToString() => $"[Id = {Id}, Timestamp = {Timestamp}, CommandId = {CommandId}, AggregateRootTypeName = {AggregateRootTypeName}, AggregateRootId = {AggregateRootId}, Version = {Version}, Events = [{string.Join(" | ", Events.Select(e => $"Type = {e.Key}, Content = {e.Value}"))}]]";
 
         #endregion
     }

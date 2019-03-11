@@ -2,5 +2,5 @@
 
 namespace Voguedi.Messaging
 {
-    public interface IMessageSubscriber : IService { }
+    public interface IMessageSubscriber : ISubscriberService { }
 }

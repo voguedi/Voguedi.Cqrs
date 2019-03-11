@@ -6,12 +6,14 @@ using Voguedi.DisposableObjects;
 
 namespace Voguedi.Messaging
 {
-    public abstract class MessageSubscriber : DisposableObject, IMessageSubscriber
+    public abstract class MessageSubscriber<TMessage> : DisposableObject, IMessageSubscriber
+        where TMessage : class, IMessage
     {
         #region Private Fields
 
         readonly IMessageConsumerFactory consumerFactory;
         readonly IMessageSubscriptionManager subscriptionManager;
+        readonly IMessageProcessor processor;
         readonly ILogger logger;
         readonly string defaultGroupName;
         readonly int defaultTopicQueueCount;
@@ -28,12 +30,14 @@ namespace Voguedi.Messaging
         protected MessageSubscriber(
             IMessageConsumerFactory consumerFactory,
             IMessageSubscriptionManager subscriptionManager,
+            IMessageProcessor processor,
             ILogger logger,
             string defaultGroupName,
             int defaultTopicQueueCount)
         {
             this.consumerFactory = consumerFactory;
             this.subscriptionManager = subscriptionManager;
+            this.processor = processor;
             this.logger = logger;
             this.defaultGroupName = defaultGroupName;
             this.defaultTopicQueueCount = defaultTopicQueueCount;
@@ -43,15 +47,7 @@ namespace Voguedi.Messaging
 
         #region Private Methods
 
-        void RegisterProcessor(IMessageConsumer consumer) => consumer.Received += (sender, e) => Process(e, consumer);
-
-        #endregion
-
-        #region Protected Methods
-
-        protected abstract Type GetMessageBaseType();
-
-        protected abstract void Process(ReceivingMessage receivingMessage, IMessageConsumer consumer);
+        void RegisterProcessor(IMessageConsumer consumer) => consumer.Received += (sender, e) => processor.Process(e, consumer);
 
         #endregion
 
@@ -71,7 +67,7 @@ namespace Voguedi.Messaging
                     }
                     catch (OperationCanceledException ex)
                     {
-                        logger.LogError(ex, "订阅器当前状态异常！");
+                        logger.LogError(ex, "订阅器操作取消！");
                     }
                 }
 
@@ -87,10 +83,10 @@ namespace Voguedi.Messaging
         {
             if (!started)
             {
-                var baseType = GetMessageBaseType();
-                subscriptionManager.Register(baseType, defaultGroupName, defaultTopicQueueCount);
+                var messageType = typeof(TMessage);
+                subscriptionManager.Register(messageType, defaultGroupName, defaultTopicQueueCount);
 
-                foreach (var queue in subscriptionManager.GetQueues(baseType))
+                foreach (var queue in subscriptionManager.GetQueues(messageType))
                 {
                     Task.Factory.StartNew(
                         () =>

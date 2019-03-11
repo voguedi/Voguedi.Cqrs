@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using Voguedi.AsyncExecution;
-using Voguedi.MongoDB;
 using Voguedi.Utils;
 
 namespace Voguedi.Domain.Events.MongoDB
@@ -36,20 +37,25 @@ namespace Voguedi.Domain.Events.MongoDB
 
         #region Private Fields
 
-        readonly IMongoDBContext dbContext;
-        readonly ILogger logger;
-        readonly IMongoCollection<EventVersionDescriptor> collection;
+        readonly IMongoClient client;
+        readonly IMongoDatabase database;
         readonly IClientSessionHandle session;
+        readonly string collectionName;
+        readonly IMongoCollection<EventVersionDescriptor> collection;
+        readonly ILogger logger;
 
         #endregion
 
         #region Ctors
 
-        public MongoDBEventVersionStore(IMongoDBContext dbContext, ILogger<MongoDBEventVersionStore> logger)
+        public MongoDBEventVersionStore(IServiceProvider serviceProvider, ILogger<MongoDBEventStore> logger, MongoDBOptions options)
         {
-            this.dbContext = dbContext;
-            collection = dbContext.Database.GetCollection<EventVersionDescriptor>("EventVersions");
-            session = dbContext.Session;
+            client = serviceProvider.GetRequiredService<IMongoClient>();
+            database = client.GetDatabase(options.DatabaseName);
+            session = client.StartSession();
+            session.StartTransaction();
+            collectionName = options.EventVersionCollectionName;
+            collection = database.GetCollection<EventVersionDescriptor>(collectionName);
             this.logger = logger;
         }
 
@@ -72,7 +78,7 @@ namespace Voguedi.Domain.Events.MongoDB
                     Version = 1
                 };
                 await collection.InsertOneAsync(session, descriptor);
-                await dbContext.SaveChangesAsync();
+                await session.CommitTransactionAsync();
                 logger.LogInformation($"存储已发布事件版本成功！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, Version = 1]");
                 return AsyncExecutedResult.Success;
             }
@@ -95,7 +101,7 @@ namespace Voguedi.Domain.Events.MongoDB
                     var filter = Builders<EventVersionDescriptor>.Filter;
                     var specification = filter.Eq(e => e.AggregateRootTypeName, aggregateRootTypeName) & filter.Eq(e => e.AggregateRootId, aggregateRootId);
                     await collection.ReplaceOneAsync(session, specification, descriptor);
-                    await dbContext.SaveChangesAsync();
+                    await session.CommitTransactionAsync();
                 }
 
                 throw new Exception("未获取任何已发布事件版本！");
@@ -139,6 +145,19 @@ namespace Voguedi.Domain.Events.MongoDB
                 return CreateAsync(aggregateRootTypeName, aggregateRootId);
 
             return ModifyAsync(aggregateRootTypeName, aggregateRootId, version);
+        }
+
+        public async Task InitializeAsync(CancellationToken cancellationToken)
+        {
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                var collectionNames = (await database.ListCollectionNamesAsync(cancellationToken: cancellationToken))?.ToList();
+
+                if (collectionNames == null || collectionNames.Count == 0 || collectionNames.All(c => c != collectionName))
+                    await database.CreateCollectionAsync(collectionName, cancellationToken: cancellationToken);
+
+                logger.LogInformation($"已发布事件版本存储器初始化成功！ [CollectionName = {collectionName}]");
+            }
         }
 
         #endregion

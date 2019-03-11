@@ -24,9 +24,15 @@ namespace Voguedi
 
         public string DefaultCommandGroupName { get; set; } = "commands";
 
+        public int DefaultCommandTopicQueueCount { get; set; } = 1;
+
+        public string DefaultApplicationMessageGroupName { get; set; } = "applicationMessages";
+
+        public int DefaultApplicationTopicQueueCount { get; set; } = 1;
+
         public string DefaultEventGroupName { get; set; } = "events";
 
-        public int DefaultTopicQueueCount { get; set; } = 1;
+        public int DefaultEventTopicQueueCount { get; set; } = 1;
 
         public int AggregateRootExpiration { get; set; } = 3 * 24 * 60 * 60 * 1000;
 

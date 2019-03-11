@@ -2,7 +2,7 @@
 
 namespace Voguedi.Services
 {
-    public interface IService : IDisposable
+    public interface ISubscriberService : IDisposable
     {
         #region Methods
 

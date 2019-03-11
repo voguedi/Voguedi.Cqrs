@@ -1,10 +1,11 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Voguedi.AsyncExecution;
+using Voguedi.Services;
 
 namespace Voguedi.Domain.Events
 {
-    public interface IEventStore
+    public interface IEventStore : IStoreService
     {
         #region Methods
 

@@ -2,8 +2,8 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
-using Voguedi.Utils;
 using Voguedi.Reflection;
+using Voguedi.Utils;
 
 namespace Voguedi.Messaging
 {
@@ -55,12 +55,12 @@ namespace Voguedi.Messaging
 
         #region Private Methods
 
-        IReadOnlyDictionary<Type, MessageSubscriberAttribute> GetAttributeMapping(Type messageBaseType, string defaultGroupName, int defaultTopicQueueCount)
+        IReadOnlyDictionary<Type, MessageSubscriberAttribute> GetAttributeMapping(Type messageType, string defaultGroupName, int defaultTopicQueueCount)
         {
             var attributes = new Dictionary<Type, MessageSubscriberAttribute>();
             var attribute = default(MessageSubscriberAttribute);
 
-            foreach (var type in typeFinder.GetTypesBySpecifiedType(messageBaseType, assemblies))
+            foreach (var type in typeFinder.GetTypesBySpecifiedType(messageType, assemblies))
             {
                 attribute = type.GetTypeInfo().GetCustomAttribute<MessageSubscriberAttribute>(true);
 
@@ -119,7 +119,7 @@ namespace Voguedi.Messaging
 
         #region IMessageSubscriptionManager
 
-        public IReadOnlyDictionary<string, string> GetQueues(Type messageBaseType) => queueMapping[messageBaseType];
+        public IReadOnlyDictionary<string, string> GetQueues(Type messageType) => queueMapping[messageType];
 
         public string GetQueueTopic(IMessage message)
         {
@@ -136,18 +136,18 @@ namespace Voguedi.Messaging
             throw new Exception($"订阅者 {message.GetType()} 未标记相关订阅特性！");
         }
 
-        public void Register(Type messageBaseType, string defaultGroupName, int defaultTopicQueueCount)
+        public void Register(Type messageType, string defaultGroupName, int defaultTopicQueueCount)
         {
             var attribute = default(MessageSubscriberAttribute);
             var queueTopic = string.Empty;
             var queueCount = 0;
 
-            foreach (var mapping in GetAttributeMapping(messageBaseType, defaultGroupName, defaultTopicQueueCount))
+            foreach (var mapping in GetAttributeMapping(messageType, defaultGroupName, defaultTopicQueueCount))
             {
                 attribute = mapping.Value;
                 queueTopic = $"{attribute.GroupName}.{attribute.Topic}";
                 queueCount = attribute.TopicQueueCount;
-                RegisterQueue(messageBaseType, queueTopic, queueCount);
+                RegisterQueue(messageType, queueTopic, queueCount);
                 RegisterSubscription(mapping.Key, queueTopic, queueCount);
             }
         }

@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using Voguedi.AsyncExecution;
-using Voguedi.MongoDB;
 
 namespace Voguedi.Domain.Events.MongoDB
 {
@@ -13,20 +14,25 @@ namespace Voguedi.Domain.Events.MongoDB
     {
         #region Private Fields
 
-        readonly IMongoDBContext dbContext;
-        readonly ILogger logger;
-        readonly IMongoCollection<EventStream> collection;
+        readonly IMongoClient client;
+        readonly IMongoDatabase database;
         readonly IClientSessionHandle session;
+        readonly string collectionName;
+        readonly IMongoCollection<EventStream> collection;
+        readonly ILogger logger;
 
         #endregion
 
         #region Ctors
 
-        public MongoDBEventStore(IMongoDBContext dbContext, ILogger<MongoDBEventStore> logger)
+        public MongoDBEventStore(IServiceProvider serviceProvider, ILogger<MongoDBEventStore> logger, MongoDBOptions options)
         {
-            this.dbContext = dbContext;
-            collection = dbContext.Database.GetCollection<EventStream>("events");
-            session = dbContext.Session;
+            client = serviceProvider.GetRequiredService<IMongoClient>();
+            database = client.GetDatabase(options.DatabaseName);
+            session = client.StartSession();
+            session.StartTransaction();
+            collectionName = options.EventCollectionName;
+            collection = database.GetCollection<EventStream>(collectionName);
             this.logger = logger;
         }
 
@@ -131,7 +137,7 @@ namespace Voguedi.Domain.Events.MongoDB
             try
             {
                 await collection.InsertOneAsync(session, stream);
-                await dbContext.SaveChangesAsync();
+                await session.CommitTransactionAsync();
                 logger.LogInformation($"事件存储成功！ {stream}");
                 return AsyncExecutedResult<EventStreamSavedResult>.Success(EventStreamSavedResult.Success);
             }
@@ -139,6 +145,19 @@ namespace Voguedi.Domain.Events.MongoDB
             {
                 logger.LogError(ex, $"事件存储失败！ {stream}");
                 return AsyncExecutedResult<EventStreamSavedResult>.Failed(ex, EventStreamSavedResult.Failed);
+            }
+        }
+
+        public async Task InitializeAsync(CancellationToken cancellationToken)
+        {
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                var collectionNames = (await database.ListCollectionNamesAsync(cancellationToken: cancellationToken))?.ToList();
+
+                if (collectionNames == null || collectionNames.Count == 0 || collectionNames.All(c => c != collectionName))
+                    await database.CreateCollectionAsync(collectionName, cancellationToken: cancellationToken);
+                
+                logger.LogInformation($"事件存储器初始化成功！ [CollectionName = {collectionName}]");
             }
         }
 

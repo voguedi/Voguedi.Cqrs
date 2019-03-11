@@ -1,14 +1,14 @@
 ﻿using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using MongoDB.Driver;
 using Voguedi.Domain.Events;
 using Voguedi.Domain.Events.MongoDB;
-using Voguedi.MongoDB;
+using Voguedi.Services;
 
 namespace Voguedi
 {
-    class MongoDBServiceRegistrar<TDbContext> : IServiceRegistrar
-        where TDbContext : class, IMongoDBContext
+    class MongoDBServiceRegistrar : IServiceRegistrar
     {
         #region Private Fields
 
@@ -26,9 +26,14 @@ namespace Voguedi
 
         public void Register(IServiceCollection services)
         {
-            services.AddMongoDB<TDbContext>(setupAction);
+            var options = new MongoDBOptions();
+            setupAction?.Invoke(options);
+            services.AddSingleton(options);
+            services.TryAddSingleton<IMongoClient>(new MongoClient(options.ConnectionString));
             services.TryAddSingleton<IEventStore, MongoDBEventStore>();
             services.TryAddSingleton<IEventVersionStore, MongoDBEventVersionStore>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IStoreService, MongoDBEventStore>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IStoreService, MongoDBEventVersionStore>());
         }
 
         #endregion

@@ -3,39 +3,43 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Voguedi.BackgroundWorkers;
-using Voguedi.DisposableObjects;
+using Voguedi.Messaging;
+using Voguedi.ObjectSerializing;
 using Voguedi.Utils;
 
 namespace Voguedi.Commands
 {
-    class CommandProcessor : DisposableObject, ICommandProcessor
+    class CommandProcessor : ICommandProcessor
     {
         #region Private Fields
-
+        
+        readonly IStringObjectSerializer objectSerializer;
         readonly IProcessingCommandQueueFactory queueFactory;
         readonly IBackgroundWorker backgroundWorker;
         readonly ILogger logger;
         readonly int expiration;
         readonly string backgroundWorkerKey;
         readonly ConcurrentDictionary<string, IProcessingCommandQueue> queueMapping = new ConcurrentDictionary<string, IProcessingCommandQueue>();
-        bool disposed;
         bool started;
+        bool stopped;
 
         #endregion
 
         #region Ctors
 
         public CommandProcessor(
+            IStringObjectSerializer objectSerializer,
             IProcessingCommandQueueFactory queueFactory,
             IBackgroundWorker backgroundWorker,
             ILogger<CommandProcessor> logger,
             VoguediOptions options)
         {
+            this.objectSerializer = objectSerializer;
             this.queueFactory = queueFactory;
             this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             expiration = options.MemoryQueueExpiration;
-            backgroundWorkerKey = $"{nameof(CommandProcessor)}_{ObjectId.NewObjectId().ToString()}";
+            backgroundWorkerKey = $"{nameof(CommandProcessor)}_{SnowflakeId.Instance.NewId()}";
         }
 
         #endregion
@@ -61,33 +65,19 @@ namespace Voguedi.Commands
 
         #endregion
 
-        #region DisposableObject
-
-        protected override void Dispose(bool disposing)
-        {
-            if (!disposed)
-            {
-                if (disposing)
-                    backgroundWorker.Stop(backgroundWorkerKey);
-
-                disposed = true;
-            }
-        }
-
-        #endregion
-
         #region ICommandProcessor
 
-        public void Process(ProcessingCommand processingCommand)
+        public void Process(ReceivingMessage receivingMessage, IMessageConsumer consumer)
         {
-            var command = processingCommand.Command;
+            var queueMessage = objectSerializer.Deserialize<QueueMessage>(receivingMessage.QueueMessage);
+            var command = (ICommand)objectSerializer.Deserialize(queueMessage.Content, Type.GetType(queueMessage.Tag));
             var aggregateRootId = command.AggregateRootId;
 
             if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentException(nameof(processingCommand), $"命令 [Type = {command.GetType()}, Id = {command.Id}] 处理的聚合根 Id 不能为空！");
+                throw new Exception($"命令处理的聚合根 Id 不能为空！ [CommandType = {command.GetType()}, CommandId = {command.Id}]");
 
             var queue = queueMapping.GetOrAdd(aggregateRootId, queueFactory.Create);
-            queue.Enqueue(processingCommand);
+            queue.Enqueue(new ProcessingCommand(command, consumer));
         }
 
         public void Start()
@@ -96,6 +86,15 @@ namespace Voguedi.Commands
             {
                 backgroundWorker.Start(backgroundWorkerKey, Clear, expiration, expiration);
                 started = true;
+            }
+        }
+
+        public void Stop()
+        {
+            if (!stopped)
+            {
+                backgroundWorker.Stop(backgroundWorkerKey);
+                stopped = true;
             }
         }
 

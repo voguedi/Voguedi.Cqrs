@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Threading;
+using System.Threading.Tasks;
 
 namespace Voguedi
 {
@@ -6,7 +7,7 @@ namespace Voguedi
     {
         #region Methods
 
-        Task BootstrapperAsync();
+        Task BootstrapperAsync(CancellationToken cancellationToken);
 
         #endregion
     }

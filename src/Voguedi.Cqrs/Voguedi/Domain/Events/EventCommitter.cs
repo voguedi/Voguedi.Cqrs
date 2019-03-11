@@ -4,13 +4,12 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Voguedi.BackgroundWorkers;
-using Voguedi.DisposableObjects;
 using Voguedi.Domain.Caching;
 using Voguedi.Utils;
 
 namespace Voguedi.Domain.Events
 {
-    class EventCommitter : DisposableObject, IEventCommitter
+    class EventCommitter : IEventCommitter
     {
         #region Private Fields
 
@@ -21,8 +20,8 @@ namespace Voguedi.Domain.Events
         readonly int expiration;
         readonly string backgroundWorkerKey;
         readonly ConcurrentDictionary<string, ICommittingEventQueue> queueMapping = new ConcurrentDictionary<string, ICommittingEventQueue>();
-        bool disposed;
         bool started;
+        bool stopped;
 
         #endregion
 
@@ -35,7 +34,7 @@ namespace Voguedi.Domain.Events
             this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             expiration = options.MemoryQueueExpiration;
-            backgroundWorkerKey = $"{nameof(EventCommitter)}_{ObjectId.NewObjectId().ToString()}";
+            backgroundWorkerKey = $"{nameof(EventCommitter)}_{SnowflakeId.Instance.NewId()}";
         }
 
         #endregion
@@ -69,21 +68,6 @@ namespace Voguedi.Domain.Events
 
         #endregion
 
-        #region DisposableObject
-
-        protected override void Dispose(bool disposing)
-        {
-            if (!disposed)
-            {
-                if (disposing)
-                    backgroundWorker.Stop(backgroundWorkerKey);
-
-                disposed = true;
-            }
-        }
-
-        #endregion
-
         #region IEventCommitter
 
         public Task CommitAsync(CommittingEvent committingEvent)
@@ -104,6 +88,15 @@ namespace Voguedi.Domain.Events
             {
                 backgroundWorker.Start(backgroundWorkerKey, Clear, expiration, expiration);
                 started = true;
+            }
+        }
+
+        public void Stop()
+        {
+            if (!stopped)
+            {
+                backgroundWorker.Stop(backgroundWorkerKey);
+                stopped = true;
             }
         }
 

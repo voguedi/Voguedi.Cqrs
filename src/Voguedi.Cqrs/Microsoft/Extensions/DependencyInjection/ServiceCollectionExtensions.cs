@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Reflection;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Voguedi;
+using Voguedi.ApplicationMessages;
 using Voguedi.Commands;
 using Voguedi.Domain.Caching;
 using Voguedi.Domain.Events;
@@ -17,18 +18,36 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         #region Private Methods
 
-        static void AddCommandHandlers(IServiceCollection services, params Assembly[] assemblies)
+        static void AddCommandHandlers(IServiceCollection services, TypeFinder typeFinder, params Assembly[] assemblies)
         {
-            foreach (var implementationType in new TypeFinder().GetTypesBySpecifiedType(typeof(ICommandHandler<>), assemblies))
+            foreach (var implementationType in typeFinder.GetTypesBySpecifiedType(typeof(ICommandHandler<>), assemblies))
             {
                 foreach (var serviceType in implementationType.GetTypeInfo().ImplementedInterfaces)
                     services.TryAddEnumerable(ServiceDescriptor.Transient(serviceType, implementationType));
             }
         }
 
-        static void AddEventHandlers(IServiceCollection services, params Assembly[] assemblies)
+        static void AddCommandAsyncHandlers(IServiceCollection services, TypeFinder typeFinder, params Assembly[] assemblies)
         {
-            foreach (var implementationType in new TypeFinder().GetTypesBySpecifiedType(typeof(IEventHandler<>), assemblies))
+            foreach (var implementationType in typeFinder.GetTypesBySpecifiedType(typeof(ICommandAsyncHandler<>), assemblies))
+            {
+                foreach (var serviceType in implementationType.GetTypeInfo().ImplementedInterfaces)
+                    services.TryAddEnumerable(ServiceDescriptor.Transient(serviceType, implementationType));
+            }
+        }
+
+        static void AddApplicationMessageHandlers(IServiceCollection services, TypeFinder typeFinder, params Assembly[] assemblies)
+        {
+            foreach (var implementationType in typeFinder.GetTypesBySpecifiedType(typeof(IApplicationMessageHandler<>), assemblies))
+            {
+                foreach (var serviceType in implementationType.GetTypeInfo().ImplementedInterfaces)
+                    services.TryAddEnumerable(ServiceDescriptor.Transient(serviceType, implementationType));
+            }
+        }
+
+        static void AddEventHandlers(IServiceCollection services, TypeFinder typeFinder, params Assembly[] assemblies)
+        {
+            foreach (var implementationType in typeFinder.GetTypesBySpecifiedType(typeof(IEventHandler<>), assemblies))
             {
                 foreach (var serviceType in implementationType.GetTypeInfo().ImplementedInterfaces)
                     services.TryAddEnumerable(ServiceDescriptor.Transient(serviceType, implementationType));
@@ -43,12 +62,22 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             if (setupAction == null)
                 throw new ArgumentNullException(nameof(setupAction));
-            
+
+            services.TryAddSingleton<IMessageSubscriptionManager, MessageSubscriptionManager>();
+            services.TryAddSingleton<IMessagePublisher, MessagePublisher>();
+
             services.TryAddSingleton<ICommandSender, CommandSender>();
+            services.TryAddSingleton<ICommandSubscriber, CommandSubscriber>();
             services.TryAddSingleton<ICommandProcessor, CommandProcessor>();
             services.TryAddSingleton<IProcessingCommandHandler, ProcessingCommandHandler>();
             services.TryAddSingleton<IProcessingCommandHandlerContextFactory, ProcessingCommandHandlerContextFactory>();
             services.TryAddSingleton<IProcessingCommandQueueFactory, ProcessingCommandQueueFactory>();
+
+            services.TryAddSingleton<IApplicationMessagePublisher, ApplicationMessagePublisher>();
+            services.TryAddSingleton<IApplicationMessageProcessor, ApplicationMessageProcessor>();
+            services.TryAddSingleton<IApplicationMessageSubscriber, ApplicationMessageSubscriber>();
+            services.TryAddSingleton<IProcessingApplicationMessageHandler, ProcessingApplicationMessageHandler>();
+            services.TryAddSingleton<IProcessingApplicationMessageQueueFactory, ProcessingApplicationMessageQueueFactory>();
 
             services.TryAddSingleton<ICommittingEventHandler, CommittingEventHandler>();
             services.TryAddSingleton<ICommittingEventQueueFactory, CommittingEventQueueFactory>();
@@ -59,33 +88,34 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IProcessingEventHandler, ProcessingEventHandler>();
             services.TryAddSingleton<IProcessingEventQueueFactory, ProcessingEventQueueFactory>();
             
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<ISubscriberService, CommandSubscriber>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<ISubscriberService, ApplicationMessageSubscriber>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<ISubscriberService, EventSubscriber>());
+
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IBackgroundWorkerService, ApplicationMessageProcessor>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IBackgroundWorkerService, CommandProcessor>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IBackgroundWorkerService, EventProcessor>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IBackgroundWorkerService, EventCommitter>());
+
             services.AddSingleton<ICache, MemoryCache>();
             services.AddSingleton<IRepository, EventSourcedRepository>();
-            services.TryAddSingleton<IMessageSubscriptionManager, MessageSubscriptionManager>();
-
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IService, MemoryCache>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IService, CommandProcessor>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IService, CommandSubscriber>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IService, EventCommitter>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IService, EventProcessor>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IService, EventSubscriber>());
-
-            services.TryAddSingleton<IBootstrapper, Bootstrapper>();
-            services.AddTransient<IStartupFilter, StartupFilter>();
-
+            services.AddTransient<IHostedService, Bootstrapper>();
             services.AddJson();
+            services.AddUitls();
 
             var options = new VoguediOptions();
             setupAction(options);
+            services.AddSingleton(options);
 
             foreach (var registrar in options.Registrars)
                 registrar.Register(services);
 
+            var typeFinder = new TypeFinder();
             var assemblies = options.Assemblies;
-            AddCommandHandlers(services, assemblies);
-            AddEventHandlers(services, assemblies);
-            services.AddUitls();
-            services.AddSingleton(options);
+            AddCommandHandlers(services, typeFinder, assemblies);
+            AddCommandAsyncHandlers(services, typeFinder, assemblies);
+            AddApplicationMessageHandlers(services, typeFinder, assemblies);
+            AddEventHandlers(services, typeFinder, assemblies);
             return services;
         }
 

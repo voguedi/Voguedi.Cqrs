@@ -1,13 +1,6 @@
-﻿using Voguedi.Services;
+﻿using Voguedi.Messaging;
 
 namespace Voguedi.Domain.Events
 {
-    public interface IEventProcessor : IService
-    {
-        #region Methods
-
-        void Process(ProcessingEvent processingEvent);
-
-        #endregion
-    }
+    public interface IEventProcessor : IMessageProcessor { }
 }

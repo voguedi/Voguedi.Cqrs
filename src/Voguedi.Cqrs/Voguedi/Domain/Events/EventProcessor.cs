@@ -3,50 +3,43 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Voguedi.BackgroundWorkers;
-using Voguedi.DisposableObjects;
+using Voguedi.Messaging;
+using Voguedi.ObjectSerializing;
 using Voguedi.Utils;
 
 namespace Voguedi.Domain.Events
 {
-    class EventProcessor : DisposableObject, IEventProcessor
+    class EventProcessor : IEventProcessor
     {
         #region Private Fields
 
+        readonly IStringObjectSerializer objectSerializer;
         readonly IProcessingEventQueueFactory queueFactory;
         readonly IBackgroundWorker backgroundWorker;
         readonly ILogger logger;
         readonly int expiration;
         readonly string backgroundWorkerKey;
         readonly ConcurrentDictionary<string, IProcessingEventQueue> queueMapping = new ConcurrentDictionary<string, IProcessingEventQueue>();
-        bool disposed;
         bool started;
+        bool stopped;
 
         #endregion
 
         #region Ctors
 
-        public EventProcessor(IProcessingEventQueueFactory queueFactory, IBackgroundWorker backgroundWorker, ILogger<EventProcessor> logger, VoguediOptions options)
+        public EventProcessor(
+            IStringObjectSerializer objectSerializer,
+            IProcessingEventQueueFactory queueFactory,
+            IBackgroundWorker backgroundWorker,
+            ILogger<EventProcessor> logger,
+            VoguediOptions options)
         {
+            this.objectSerializer = objectSerializer;
             this.queueFactory = queueFactory;
             this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             expiration = options.MemoryQueueExpiration;
-            backgroundWorkerKey = $"{nameof(EventProcessor)}_{ObjectId.NewObjectId().ToString()}";
-        }
-
-        #endregion
-
-        #region DisposableObject
-
-        protected override void Dispose(bool disposing)
-        {
-            if (!disposed)
-            {
-                if (disposing)
-                    backgroundWorker.Stop(backgroundWorkerKey);
-
-                disposed = true;
-            }
+            backgroundWorkerKey = $"{nameof(EventProcessor)}_{SnowflakeId.Instance.NewId()}";
         }
 
         #endregion
@@ -74,15 +67,29 @@ namespace Voguedi.Domain.Events
 
         #region IEventProcessor
 
-        public void Process(ProcessingEvent processingEvent)
+        public void Process(ReceivingMessage receivingMessage, IMessageConsumer consumer)
         {
-            var aggregateRootId = processingEvent.Stream.AggregateRootId;
+            var streamMessage = objectSerializer.Deserialize<EventStreamMessage>(receivingMessage.QueueMessage);
+            var aggregateRootId = streamMessage.AggregateRootId;
 
             if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentException(nameof(processingEvent), $"事件 {processingEvent.Stream} 处理的聚合根 Id 不能为空！");
+                throw new Exception($"事件处理的聚合根 Id 不能为空！ [EventStreamMessage = {streamMessage}]");
+
+            var events = new List<IEvent>();
+
+            foreach (var item in streamMessage.Events)
+                events.Add((IEvent)objectSerializer.Deserialize(item.Value, Type.GetType(item.Key)));
 
             var queue = queueMapping.GetOrAdd(aggregateRootId, queueFactory.Create);
-            queue.Enqueue(processingEvent);
+            var stream = new EventStream(
+                streamMessage.Id,
+                streamMessage.Timestamp,
+                streamMessage.CommandId,
+                streamMessage.AggregateRootTypeName,
+                streamMessage.AggregateRootId,
+                streamMessage.Version,
+                events);
+            queue.Enqueue(new ProcessingEvent(stream, consumer));
         }
 
         public void Start()
@@ -91,6 +98,15 @@ namespace Voguedi.Domain.Events
             {
                 backgroundWorker.Start(backgroundWorkerKey, Clear, expiration, expiration);
                 started = true;
+            }
+        }
+
+        public void Stop()
+        {
+            if (!stopped)
+            {
+                backgroundWorker.Stop(backgroundWorkerKey);
+                stopped = true;
             }
         }
 

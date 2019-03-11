@@ -7,12 +7,11 @@ using Voguedi.BackgroundWorkers;
 using Voguedi.DisposableObjects;
 using Voguedi.Domain.AggregateRoots;
 using Voguedi.Domain.Repositories;
-using Voguedi.Services;
 using Voguedi.Utils;
 
 namespace Voguedi.Domain.Caching
 {
-    class MemoryCache : DisposableObject, ICache, IService
+    class MemoryCache : DisposableObject, ICache
     {
         #region Private Class
 
@@ -68,7 +67,7 @@ namespace Voguedi.Domain.Caching
             this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             expiration = options.AggregateRootExpiration;
-            backgroundWorkerKey = $"{nameof(MemoryCache)}_{ObjectId.NewObjectId().ToString()}";
+            backgroundWorkerKey = $"{nameof(MemoryCache)}_{SnowflakeId.Instance.NewId()}";
         }
 
         #endregion
@@ -96,7 +95,7 @@ namespace Voguedi.Domain.Caching
 
         #endregion
 
-        #region DisposableObject
+        #region ICache
 
         protected override void Dispose(bool disposing)
         {
@@ -108,10 +107,6 @@ namespace Voguedi.Domain.Caching
                 disposed = true;
             }
         }
-
-        #endregion
-
-        #region ICache
 
         public async Task<IEventSourcedAggregateRoot> GetAsync(Type aggregateRootType, string aggregateRootId)
         {
@@ -171,10 +166,6 @@ namespace Voguedi.Domain.Caching
             if (aggregateRoot != null)
                 await SetAsync(aggregateRoot);
         }
-
-        #endregion
-
-        #region IService
 
         public void Start()
         {

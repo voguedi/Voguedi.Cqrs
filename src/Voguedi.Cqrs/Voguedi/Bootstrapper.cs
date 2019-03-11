@@ -2,98 +2,99 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Voguedi.Domain.Caching;
 using Voguedi.Services;
-using Voguedi.Stores;
 
 namespace Voguedi
 {
-    class Bootstrapper : IBootstrapper
+    class Bootstrapper : BackgroundService, IBootstrapper
     {
         #region Private Fields
 
-        readonly IEnumerable<IService> services;
-        readonly IEnumerable<IStore> stores;
-        readonly IApplicationLifetime applicationLifetime;
+        readonly ICache cache;
+        readonly IEnumerable<IBackgroundWorkerService> backgroundWorkerServices;
+        readonly IEnumerable<IStoreService> storeServices;
+        readonly IEnumerable<ISubscriberService> subscriberServices;
         readonly ILogger logger;
-        readonly CancellationTokenSource cancellationTokenSource;
-        readonly CancellationTokenRegistration cancellationTokenRegistration;
-        Task task;
 
         #endregion
 
         #region Ctors
 
         public Bootstrapper(
-            IEnumerable<IService> services,
-            IEnumerable<IStore> stores,
-            IApplicationLifetime applicationLifetime,
+            ICache cache,
+            IEnumerable<IBackgroundWorkerService> backgroundWorkerServices,
+            IEnumerable<IStoreService> storeServices,
+            IEnumerable<ISubscriberService> subscriberServices,
             ILogger<Bootstrapper> logger)
         {
-            this.services = services;
-            this.stores = stores;
-            this.applicationLifetime = applicationLifetime;
+            this.cache = cache;
+            this.backgroundWorkerServices = backgroundWorkerServices;
+            this.storeServices = storeServices;
+            this.subscriberServices = subscriberServices;
             this.logger = logger;
-            cancellationTokenSource = new CancellationTokenSource();
-            cancellationTokenRegistration = applicationLifetime.ApplicationStopping.Register(
-                () =>
-                {
-                    cancellationTokenSource.Cancel();
-
-                    try
-                    {
-                        task?.GetAwaiter().GetResult();
-                    }
-                    catch (OperationCanceledException ex)
-                    {
-                        logger.LogError(ex, "框架初始化操作取消！");
-                    }
-                });
         }
 
         #endregion
 
-        #region Private Methods
+        #region BackgroundService
 
-        async Task DoBootstrapperAsync()
-        {
-            foreach (var store in stores)
-                await store.InitializeAsync(cancellationTokenSource.Token);
-
-            if (!cancellationTokenSource.IsCancellationRequested)
-            {
-                applicationLifetime.ApplicationStopping.Register(() =>
-                {
-                    foreach (var service in services)
-                        service.Dispose();
-                });
-
-                if (!cancellationTokenSource.IsCancellationRequested)
-                {
-                    foreach (var service in services)
-                    {
-                        try
-                        {
-                            service.Start();
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogError(ex, $"框架相关服务启动失败！");
-                        }
-                    }
-
-                    cancellationTokenRegistration.Dispose();
-                    cancellationTokenSource.Dispose();
-                }
-            }
-        }
+        protected override Task ExecuteAsync(CancellationToken stoppingToken) => BootstrapperAsync(stoppingToken);
 
         #endregion
 
         #region IBootstrapper
 
-        public Task BootstrapperAsync() => task = DoBootstrapperAsync();
+        public async Task BootstrapperAsync(CancellationToken cancellationToken)
+        {
+            logger.LogInformation("后台服务启动中...");
+
+            foreach (var storeService in storeServices)
+                await storeService.InitializeAsync(cancellationToken);
+
+            cancellationToken.Register(() =>
+            {
+                logger.LogInformation("后台服务停止中...");
+                cache.Dispose();
+
+                foreach (var backgroundWorkerService in backgroundWorkerServices)
+                    backgroundWorkerService.Stop();
+
+                foreach (var subscriberService in subscriberServices)
+                {
+                    try
+                    {
+                        subscriberService.Dispose();
+                    }
+                    catch (OperationCanceledException ex)
+                    {
+                        logger.LogError(ex, $"订阅服务停止操作取消！ [SubscriberServiceType = {subscriberService.GetType()}]");
+                    }
+                }
+
+                logger.LogInformation("后台服务已停止！");
+            });
+            cache.Start();
+
+            foreach (var backgroundWorkerService in backgroundWorkerServices)
+                backgroundWorkerService.Start();
+
+            foreach (var subscriberService in subscriberServices)
+            {
+                try
+                {
+                    subscriberService.Start();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, $"订阅服务启动失败！ [SubscriberServiceType = {subscriberService.GetType()}]");
+                }
+            }
+
+            logger.LogInformation("后台服务已启动！");
+        }
 
         #endregion
     }

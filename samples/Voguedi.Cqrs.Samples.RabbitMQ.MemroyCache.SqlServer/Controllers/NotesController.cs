@@ -60,7 +60,7 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Controllers
             if (string.IsNullOrWhiteSpace(content))
                 throw new ArgumentNullException(nameof(content));
 
-            var result = await commandSender.SendAsync(new ModifyNoteCommand(id, title, content));
+            var result = await commandSender.SendAsync(new TryModifyNoteCommand(id, title, content));
 
             if (result.Succeeded)
                 return NoContent();

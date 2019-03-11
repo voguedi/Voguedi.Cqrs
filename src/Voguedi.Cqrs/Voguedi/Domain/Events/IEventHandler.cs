@@ -1,17 +1,8 @@
-﻿using System.Threading.Tasks;
-using Voguedi.AsyncExecution;
+﻿using Voguedi.Messaging;
 
 namespace Voguedi.Domain.Events
 {
-    public interface IEventHandler { }
+    public interface IEventHandler : IMessageHandler { }
 
-    public interface IEventHandler<in TEvent> : IEventHandler
-        where TEvent : class, IEvent
-    {
-        #region Methods
-
-        Task<AsyncExecutedResult> HandleAsync(TEvent e);
-
-        #endregion
-    }
+    public interface IEventHandler<in TEvent> : IEventHandler, IMessageHandler<TEvent> where TEvent : class, IEvent { }
 }
