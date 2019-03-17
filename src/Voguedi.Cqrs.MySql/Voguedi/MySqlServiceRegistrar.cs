@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Voguedi.Domain.Events;
 using Voguedi.Domain.Events.MySql;
-using Voguedi.Services;
 
 namespace Voguedi
 {
@@ -30,8 +29,6 @@ namespace Voguedi
             services.AddSingleton(options);
             services.TryAddSingleton<IEventStore, MySqlEventStore>();
             services.TryAddSingleton<IEventVersionStore, MySqlEventVersionStore>();
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IStoreService, MySqlEventStore>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IStoreService, MySqlEventVersionStore>());
         }
 
         #endregion

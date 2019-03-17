@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using MongoDB.Driver;
 using Voguedi.Domain.Events;
 using Voguedi.Domain.Events.MongoDB;
-using Voguedi.Services;
 
 namespace Voguedi
 {
@@ -32,8 +31,6 @@ namespace Voguedi
             services.TryAddSingleton<IMongoClient>(new MongoClient(options.ConnectionString));
             services.TryAddSingleton<IEventStore, MongoDBEventStore>();
             services.TryAddSingleton<IEventVersionStore, MongoDBEventVersionStore>();
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IStoreService, MongoDBEventStore>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IStoreService, MongoDBEventVersionStore>());
         }
 
         #endregion
