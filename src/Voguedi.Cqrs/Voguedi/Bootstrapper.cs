@@ -41,7 +41,7 @@ namespace Voguedi
 
         #region BackgroundService
 
-        protected override Task ExecuteAsync(CancellationToken stoppingToken) => BootstrapperAsync(stoppingToken);
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken) => await BootstrapperAsync(stoppingToken);
 
         #endregion
 

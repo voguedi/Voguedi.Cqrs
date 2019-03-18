@@ -108,15 +108,15 @@ namespace Voguedi.Domain.Caching
             }
         }
 
-        public async Task<IEventSourcedAggregateRoot> GetAsync(Type aggregateRootType, string aggregateRootId)
+        public async Task<IEventSourcedAggregateRoot> GetAsync(Type aggregateRootType, object aggregateRootId)
         {
             if (aggregateRootType == null)
                 throw new ArgumentNullException(nameof(aggregateRootType));
 
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
+            if (aggregateRootId == null)
                 throw new ArgumentNullException(nameof(aggregateRootId));
 
-            if (cacheItemMapping.TryGetValue(aggregateRootId, out var cacheItem))
+            if (cacheItemMapping.TryGetValue(aggregateRootId.ToString(), out var cacheItem))
             {
                 var aggregateRoot = cacheItem.AggregateRoot;
 
@@ -153,12 +153,12 @@ namespace Voguedi.Domain.Caching
             return Task.CompletedTask;
         }
 
-        public async Task RefreshAsync(Type aggregateRootType, string aggregateRootId)
+        public async Task RefreshAsync(Type aggregateRootType, object aggregateRootId)
         {
             if (aggregateRootType == null)
                 throw new ArgumentNullException(nameof(aggregateRootType));
 
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
+            if (aggregateRootId == null)
                 throw new ArgumentNullException(nameof(aggregateRootId));
 
             var aggregateRoot = await repository.GetAsync(aggregateRootType, aggregateRootId);

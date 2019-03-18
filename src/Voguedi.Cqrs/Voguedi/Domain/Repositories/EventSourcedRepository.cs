@@ -23,7 +23,7 @@ namespace Voguedi.Domain.Repositories
 
         #region Private Methods
 
-        IEventSourcedAggregateRoot Build(Type aggregateRootType, string aggregateRootId)
+        IEventSourcedAggregateRoot Build(Type aggregateRootType, object aggregateRootId)
         {
             var ctors = from ctor in aggregateRootType.GetTypeInfo().GetConstructors()
                         let parameters = ctor.GetParameters()
@@ -32,7 +32,7 @@ namespace Voguedi.Domain.Repositories
             var defaultCtor = ctors.FirstOrDefault();
 
             if (defaultCtor != null)
-                return defaultCtor.Invoke(new object[] { aggregateRootId }) as IEventSourcedAggregateRoot;
+                return defaultCtor.Invoke(new[] { aggregateRootId }) as IEventSourcedAggregateRoot;
 
             throw new Exception($"聚合根 {aggregateRootType} 未提供初始化 Id 的构造方法！");
         }
@@ -41,15 +41,15 @@ namespace Voguedi.Domain.Repositories
 
         #region IRepository
 
-        async Task<IEventSourcedAggregateRoot> IRepository.GetAsync(Type aggregateRootType, string aggregateRootId)
+        async Task<IEventSourcedAggregateRoot> IRepository.GetAsync(Type aggregateRootType, object aggregateRootId)
         {
             if (aggregateRootType == null)
                 throw new ArgumentNullException(nameof(aggregateRootType));
 
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
+            if (aggregateRootId == null)
                 throw new ArgumentNullException(nameof(aggregateRootId));
 
-            var result = await eventStore.GetAllAsync(aggregateRootType.FullName, aggregateRootId);
+            var result = await eventStore.GetAllAsync(aggregateRootType.FullName, aggregateRootId.ToString());
 
             if (result.Succeeded)
             {

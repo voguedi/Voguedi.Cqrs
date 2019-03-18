@@ -52,15 +52,13 @@ namespace Voguedi.Commands
             if (Equals(aggregateRootId, default(TIdentity)))
                 throw new ArgumentNullException(nameof(aggregateRootId));
 
-            var key = aggregateRootId.ToString();
-
-            if (aggregateRootMapping.TryGetValue(key, out var value) && value is TAggregateRoot aggregateRoot)
+            if (aggregateRootMapping.TryGetValue(aggregateRootId.ToString(), out var value) && value is TAggregateRoot aggregateRoot)
                 return aggregateRoot;
 
-            aggregateRoot = await cache.GetAsync(typeof(TAggregateRoot), key) as TAggregateRoot;
+            aggregateRoot = await cache.GetAsync(typeof(TAggregateRoot), aggregateRootId) as TAggregateRoot;
 
             if (aggregateRoot == null)
-                aggregateRoot = await repository.GetAsync(typeof(TAggregateRoot), key) as TAggregateRoot;
+                aggregateRoot = await repository.GetAsync(typeof(TAggregateRoot), aggregateRootId) as TAggregateRoot;
 
             if (aggregateRoot != null)
             {
