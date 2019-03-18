@@ -7,7 +7,7 @@ namespace Voguedi.Services
     {
         #region Methods
 
-        Task InitializeAsync(CancellationToken stoppingToken);
+        Task InitializeAsync(CancellationToken cancellationToken);
 
         #endregion
     }

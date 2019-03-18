@@ -24,23 +24,23 @@ namespace Voguedi.Domain.Events.SqlServer
         const string modifySql = "UPDATE {0} SET [Version] = @Version, [ModifiedOn] = @ModifiedOn WHERE [AggregateRootTypeName] = @AggregateRootTypeName AND [AggregateRootId] = @AggregateRootId AND [Version] = (@Version - 1)";
         const string initializeSql = @"
             IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{0}')
-            BEGIN
-	            EXEC('CREATE SCHEMA [{0}]')
-            END;
+                BEGIN
+	                EXEC('CREATE SCHEMA [{0}]'); 
+                END; 
             IF OBJECT_ID(N'[{0}].[{1}]',N'U') IS NULL
-            BEGIN
-                CREATE TABLE [{0}].[{1}](
-	                [Id] [bigint] NOT NULL,
-	                [AggregateRootTypeName] [varchar](256) NOT NULL,
-	                [AggregateRootId] [varchar](32) NOT NULL,
-	                [Version] [bigint] NOT NULL,
-	                [CreatedOn] [datetime] NOT NULL,
-	                [ModifiedOn] [datetime] NULL,
-                    CONSTRAINT [PK_{1}] PRIMARY KEY CLUSTERED(
-	                    [Id] ASC
-                    )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-                ) ON [PRIMARY]
-            END";
+                BEGIN
+                    CREATE TABLE [{0}].[{1}](
+	                    [Id] [bigint] NOT NULL,
+	                    [AggregateRootTypeName] [varchar](256) NOT NULL,
+	                    [AggregateRootId] [varchar](32) NOT NULL,
+	                    [Version] [bigint] NOT NULL,
+	                    [CreatedOn] [datetime] NOT NULL,
+	                    [ModifiedOn] [datetime] NULL,
+                        CONSTRAINT [PK_{1}] PRIMARY KEY CLUSTERED(
+	                        [Id] ASC
+                        )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+                    ) ON [PRIMARY]; 
+                END; ";
 
         #endregion
 

@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Voguedi.Domain.Events;
 using Voguedi.Domain.Events.SqlServer;
+using Voguedi.Services;
 
 namespace Voguedi
 {
@@ -29,6 +30,8 @@ namespace Voguedi
             services.AddSingleton(options);
             services.TryAddSingleton<IEventStore, SqlServerEventStore>();
             services.TryAddSingleton<IEventVersionStore, SqlServerEventVersionStore>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IStoreService, SqlServerEventStore>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IStoreService, SqlServerEventVersionStore>());
         }
 
         #endregion

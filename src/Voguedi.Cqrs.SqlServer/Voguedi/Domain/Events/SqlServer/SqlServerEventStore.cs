@@ -31,26 +31,26 @@ namespace Voguedi.Domain.Events.SqlServer
         const string saveSql = "INSERT INTO {0} ([Id], [Timestamp], [CommandId], [AggregateRootTypeName], [AggregateRootId], [Version], [Events]) VALUES (@Id, @Timestamp, @CommandId, @AggregateRootTypeName, @AggregateRootId, @Version, @Events)";
         const string initializeSql = @"
             IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{0}')
-            BEGIN
-	            EXEC('CREATE SCHEMA [{0}]')
-            END;
+                BEGIN
+	                EXEC('CREATE SCHEMA [{0}]');
+                END;
             IF OBJECT_ID(N'[{0}].[{1}]',N'U') IS NULL
-            BEGIN
-                CREATE TABLE [{0}].[{1}](
-	                [Id] [bigint] NOT NULL,
-	                [Timestamp] [datetime] NOT NULL,
-	                [CommandId] [bigint] NOT NULL,
-	                [AggregateRootTypeName] [varchar](256) NOT NULL,
-	                [AggregateRootId] [varchar](32) NOT NULL,
-	                [Version] [bigint] NOT NULL,
-	                [Events] [varchar](max) NOT NULL,
-                    CONSTRAINT [PK_{1}] PRIMARY KEY CLUSTERED(
-	                    [Id] ASC
-                    )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
-                ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY];
-                CREATE UNIQUE INDEX [IX_Events_AggregateRootId_Version]   ON [{0}].[{1}] ([AggregateRootId] ASC, [Version] ASC);
-                CREATE UNIQUE INDEX [IX_Events_AggregateRootId_CommandId] ON [{0}].[{1}] ([AggregateRootId] ASC, [CommandId] ASC)
-            END";
+                BEGIN
+                    CREATE TABLE [{0}].[{1}](
+	                    [Id] [bigint] NOT NULL,
+	                    [Timestamp] [datetime] NOT NULL,
+	                    [CommandId] [bigint] NOT NULL,
+	                    [AggregateRootTypeName] [varchar](256) NOT NULL,
+	                    [AggregateRootId] [varchar](32) NOT NULL,
+	                    [Version] [bigint] NOT NULL,
+	                    [Events] [varchar](max) NOT NULL,
+                        CONSTRAINT [PK_{1}] PRIMARY KEY CLUSTERED(
+	                        [Id] ASC
+                        )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+                    ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY];
+                    CREATE UNIQUE INDEX [IX_Events_AggregateRootId_Version]   ON [{0}].[{1}] ([AggregateRootId] ASC, [Version] ASC);
+                    CREATE UNIQUE INDEX [IX_Events_AggregateRootId_CommandId] ON [{0}].[{1}] ([AggregateRootId] ASC, [CommandId] ASC);
+                END;";
 
         #endregion
 
