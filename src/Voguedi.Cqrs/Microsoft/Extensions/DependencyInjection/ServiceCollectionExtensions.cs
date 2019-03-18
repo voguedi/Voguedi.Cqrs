@@ -112,6 +112,14 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IProcessingEventHandler, ProcessingEventHandler>();
             services.TryAddSingleton<IProcessingEventQueueFactory, ProcessingEventQueueFactory>();
 
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<ISubscriberService, CommandSubscriber>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<ISubscriberService, ApplicationMessageSubscriber>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<ISubscriberService, EventSubscriber>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IBackgroundWorkerService, CommandProcessor>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IBackgroundWorkerService, ApplicationMessageProcessor>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IBackgroundWorkerService, EventProcessor>());
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IBackgroundWorkerService, EventCommitter>());
+
             services.AddSingleton<ICache, MemoryCache>();
             services.AddSingleton<IRepository, EventSourcedRepository>();
             services.AddTransient<IHostedService, Bootstrapper>();
