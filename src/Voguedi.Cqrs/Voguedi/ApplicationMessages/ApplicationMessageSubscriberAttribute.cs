@@ -2,7 +2,7 @@
 
 namespace Voguedi.ApplicationMessages
 {
-    public sealed class ApplicationMessageSubscriberAttribute : MessageSubscriberAttribute
+    public class ApplicationMessageSubscriberAttribute : MessageSubscriberAttribute
     {
         #region Ctors
 

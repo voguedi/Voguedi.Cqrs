@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
 using Voguedi.Reflection;
-using Voguedi.Utils;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Messaging
 {
@@ -38,8 +38,8 @@ namespace Voguedi.Messaging
 
         readonly ITypeFinder typeFinder;
         readonly Assembly[] assemblies;
-        readonly ConcurrentDictionary<Type, Dictionary<string, string>> queueMapping = new ConcurrentDictionary<Type, Dictionary<string, string>>();
-        readonly ConcurrentDictionary<Type, MessageSubscription> subscriptionMapping = new ConcurrentDictionary<Type, MessageSubscription>();
+        readonly ConcurrentDictionary<Type, Dictionary<string, string>> queueMapping;
+        readonly ConcurrentDictionary<Type, MessageSubscription> subscriptionMapping;
 
         #endregion
 
@@ -49,6 +49,8 @@ namespace Voguedi.Messaging
         {
             this.typeFinder = typeFinder;
             assemblies = options.Assemblies;
+            queueMapping = new ConcurrentDictionary<Type, Dictionary<string, string>>();
+            subscriptionMapping = new ConcurrentDictionary<Type, MessageSubscription>();
         }
 
         #endregion
@@ -58,16 +60,15 @@ namespace Voguedi.Messaging
         IReadOnlyDictionary<Type, MessageSubscriberAttribute> GetAttributeMapping(Type messageType, string defaultGroupName, int defaultTopicQueueCount)
         {
             var attributes = new Dictionary<Type, MessageSubscriberAttribute>();
-            var attribute = default(MessageSubscriberAttribute);
 
             foreach (var type in typeFinder.GetTypesBySpecifiedType(messageType, assemblies))
             {
-                attribute = type.GetTypeInfo().GetCustomAttribute<MessageSubscriberAttribute>(true);
+                var attribute = type.GetTypeInfo().GetCustomAttribute<MessageSubscriberAttribute>(true);
 
                 if (attribute != null)
                 {
                     if (string.IsNullOrWhiteSpace(attribute.Topic))
-                        throw new Exception($"订阅者 {type} 订阅主题不能为空！");
+                        throw new Exception($"订阅者主题不能为空。 [SubscriberType = {type}]");
 
                     if (string.IsNullOrWhiteSpace(attribute.GroupName) && !string.IsNullOrWhiteSpace(defaultGroupName))
                         attribute.GroupName = defaultGroupName;
@@ -75,7 +76,7 @@ namespace Voguedi.Messaging
                     if (attribute.TopicQueueCount <= 0)
                     {
                         if (defaultTopicQueueCount <= 0)
-                            throw new Exception($"默认主题队列数量小于 1 ！");
+                            throw new Exception($"默认主题队列数量小于 1 。");
 
                         attribute.TopicQueueCount = defaultTopicQueueCount;
                     }
@@ -92,9 +93,7 @@ namespace Voguedi.Messaging
             var queues = new List<string>();
 
             if (queueCount == 1)
-            {
                 queues.Add(queueTopic);
-            }
             else
             {
                 for (var i = 0; i < queueCount; i++)
@@ -129,24 +128,20 @@ namespace Voguedi.Messaging
                     return subscription.QueueTopic;
 
                 var routingKey = message.GetRoutingKey();
-                var queueIndex = Helper.GetHashCode(routingKey) % subscription.QueueCount;
+                var queueIndex = Utils.GetHashCode(routingKey) % subscription.QueueCount;
                 return $"{subscription.QueueTopic}_{queueIndex}";
             }
 
-            throw new Exception($"订阅者 {message.GetType()} 未标记相关订阅特性！");
+            throw new Exception($"订阅者未标记相关订阅特性。 [SubscriberType = {message.GetType()}]");
         }
 
         public void Register(Type messageType, string defaultGroupName, int defaultTopicQueueCount)
         {
-            var attribute = default(MessageSubscriberAttribute);
-            var queueTopic = string.Empty;
-            var queueCount = 0;
-
             foreach (var mapping in GetAttributeMapping(messageType, defaultGroupName, defaultTopicQueueCount))
             {
-                attribute = mapping.Value;
-                queueTopic = $"{attribute.GroupName}.{attribute.Topic}";
-                queueCount = attribute.TopicQueueCount;
+                var attribute = mapping.Value;
+                var queueTopic = $"{attribute.GroupName}.{attribute.Topic}";
+                var queueCount = attribute.TopicQueueCount;
                 RegisterQueue(messageType, queueTopic, queueCount);
                 RegisterSubscription(mapping.Key, queueTopic, queueCount);
             }

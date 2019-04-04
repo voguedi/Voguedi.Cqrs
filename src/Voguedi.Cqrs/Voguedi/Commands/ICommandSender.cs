@@ -1,5 +1,5 @@
 ﻿using System.Threading.Tasks;
-using Voguedi.AsyncExecution;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Commands
 {
@@ -7,8 +7,7 @@ namespace Voguedi.Commands
     {
         #region Methods
 
-        Task<AsyncExecutedResult> SendAsync<TCommand>(TCommand command)
-            where TCommand : class, ICommand;
+        Task<AsyncExecutedResult> SendAsync<TCommand>(TCommand command) where TCommand : class, ICommand;
 
         #endregion
     }

@@ -7,7 +7,7 @@ namespace Voguedi.Commands
     {
         #region Methods
 
-        IReadOnlyList<IEventSourcedAggregateRoot> GetAggregateRoots();
+        IReadOnlyList<IAggregateRoot> GetAggregateRoots();
 
         #endregion
     }

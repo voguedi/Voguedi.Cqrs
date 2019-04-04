@@ -1,6 +1,6 @@
 ﻿namespace Voguedi.Messaging
 {
-    public sealed class QueueMessage
+    public class QueueMessage
     {
         #region Public Properties
 

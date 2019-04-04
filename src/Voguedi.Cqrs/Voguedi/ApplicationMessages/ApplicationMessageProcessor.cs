@@ -3,9 +3,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Voguedi.BackgroundWorkers;
+using Voguedi.Infrastructure;
 using Voguedi.Messaging;
-using Voguedi.ObjectSerializing;
-using Voguedi.Utils;
+using Voguedi.ObjectSerializers;
 
 namespace Voguedi.ApplicationMessages
 {
@@ -19,7 +19,7 @@ namespace Voguedi.ApplicationMessages
         readonly ILogger logger;
         readonly int expiration;
         readonly string backgroundWorkerKey;
-        readonly ConcurrentDictionary<string, IProcessingApplicationMessageQueue> queueMapping = new ConcurrentDictionary<string, IProcessingApplicationMessageQueue>();
+        readonly ConcurrentDictionary<string, IProcessingApplicationMessageQueue> queueMapping;
         bool started;
         bool stopped;
 
@@ -39,7 +39,8 @@ namespace Voguedi.ApplicationMessages
             this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             expiration = options.MemoryQueueExpiration;
-            backgroundWorkerKey = $"{nameof(ApplicationMessageProcessor)}_{SnowflakeId.Instance.NewId()}";
+            backgroundWorkerKey = $"{nameof(ApplicationMessageProcessor)}_{SnowflakeId.Default().NewId()}";
+            queueMapping = new ConcurrentDictionary<string, IProcessingApplicationMessageQueue>();
         }
 
         #endregion
@@ -59,7 +60,7 @@ namespace Voguedi.ApplicationMessages
             foreach (var item in queue)
             {
                 if (queueMapping.TryRemove(item.Key))
-                    logger.LogInformation($"不活跃应用消息处理队列清理成功！ [RoutingKey = {item.Key}, Expiration = {expiration}]");
+                    logger.LogDebug($"已过期队列清理成功。 [RoutingKey = {item.Key}, Expiration = {expiration}]");
             }
         }
 
@@ -67,17 +68,17 @@ namespace Voguedi.ApplicationMessages
 
         #region IApplicationMessageProcessor
 
-        public void Process(ReceivingMessage receivingMessage, IMessageConsumer consumer)
+        public void Process(string receivedMessage)
         {
-            var queueMessage = objectSerializer.Deserialize<QueueMessage>(receivingMessage.QueueMessage);
+            var queueMessage = objectSerializer.Deserialize<QueueMessage>(receivedMessage);
             var applicationMessage = (IApplicationMessage)objectSerializer.Deserialize(queueMessage.Content, Type.GetType(queueMessage.Tag));
             var routingKey = applicationMessage.GetRoutingKey();
 
             if (string.IsNullOrWhiteSpace(routingKey))
-                throw new Exception($"应用消息的路由健不能为空！ [ApplicationMessageType = {applicationMessage.GetType()}, ApplicationMessageId = {applicationMessage.Id}]");
+                throw new ArgumentException($"应用消息的路由键不能为空。 [ApplicationMessageType = {applicationMessage.GetType()}, ApplicationMessageId = {applicationMessage.Id}]", nameof(receivedMessage));
 
             var queue = queueMapping.GetOrAdd(routingKey, queueFactory.Create);
-            queue.Enqueue(new ProcessingApplicationMessage(applicationMessage, consumer));
+            queue.Enqueue(new ProcessingApplicationMessage(applicationMessage));
         }
 
         public void Start()

@@ -4,10 +4,9 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Voguedi.BackgroundWorkers;
-using Voguedi.DisposableObjects;
 using Voguedi.Domain.AggregateRoots;
 using Voguedi.Domain.Repositories;
-using Voguedi.Utils;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Domain.Caching
 {
@@ -19,19 +18,19 @@ namespace Voguedi.Domain.Caching
         {
             #region Ctors
 
-            public AggregateRootCacheItem(IEventSourcedAggregateRoot aggregateRoot, DateTime timestamp)
+            public AggregateRootCacheItem(IAggregateRoot aggregateRoot, DateTime timestamp)
             {
                 AggregateRoot = aggregateRoot;
                 Timestamp = timestamp;
             }
 
-            public AggregateRootCacheItem(IEventSourcedAggregateRoot aggregateRoot) : this(aggregateRoot, DateTime.UtcNow) { }
+            public AggregateRootCacheItem(IAggregateRoot aggregateRoot) : this(aggregateRoot, DateTime.UtcNow) { }
 
             #endregion
 
             #region Public Properties
 
-            public IEventSourcedAggregateRoot AggregateRoot { get; set; }
+            public IAggregateRoot AggregateRoot { get; set; }
 
             public DateTime Timestamp { get; set; }
 
@@ -53,7 +52,7 @@ namespace Voguedi.Domain.Caching
         readonly ILogger logger;
         readonly int expiration;
         readonly string backgroundWorkerKey;
-        readonly ConcurrentDictionary<string, AggregateRootCacheItem> cacheItemMapping = new ConcurrentDictionary<string, AggregateRootCacheItem>();
+        readonly ConcurrentDictionary<string, AggregateRootCacheItem> cacheItemMapping;
         bool disposed;
         bool started;
 
@@ -67,7 +66,8 @@ namespace Voguedi.Domain.Caching
             this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             expiration = options.AggregateRootExpiration;
-            backgroundWorkerKey = $"{nameof(MemoryCache)}_{SnowflakeId.Instance.NewId()}";
+            backgroundWorkerKey = $"{nameof(MemoryCache)}_{SnowflakeId.Default().NewId()}";
+            cacheItemMapping = new ConcurrentDictionary<string, AggregateRootCacheItem>();
         }
 
         #endregion
@@ -84,12 +84,10 @@ namespace Voguedi.Domain.Caching
                     aggregateRoots.Add(item);
             }
 
-            var cacheItem = default(AggregateRootCacheItem);
-
             foreach (var item in aggregateRoots)
             {
-                if (cacheItemMapping.TryRemove(item.Key, out cacheItem))
-                    logger.LogInformation($"聚合根清理成功！ [AggregateRootType = {cacheItem.AggregateRoot.GetAggregateRootType()}, AggregateRootId = {cacheItem.AggregateRoot.GetAggregateRootId()}, Expiration = {expiration}]");
+                if (cacheItemMapping.TryRemove(item.Key, out var cacheItem))
+                    logger.LogDebug($"已过期聚合根清理成功。 [AggregateRootType = {cacheItem.AggregateRoot.GetType()}, AggregateRootId = {cacheItem.AggregateRoot.Id}, Expiration = {expiration}]");
             }
         }
 
@@ -108,11 +106,8 @@ namespace Voguedi.Domain.Caching
             }
         }
 
-        public async Task<IEventSourcedAggregateRoot> GetAsync(Type aggregateRootType, object aggregateRootId)
+        async Task<TAggregateRoot> ICache.GetAsync<TAggregateRoot, TIdentity>(TIdentity aggregateRootId)
         {
-            if (aggregateRootType == null)
-                throw new ArgumentNullException(nameof(aggregateRootType));
-
             if (aggregateRootId == null)
                 throw new ArgumentNullException(nameof(aggregateRootId));
 
@@ -122,7 +117,7 @@ namespace Voguedi.Domain.Caching
 
                 if (aggregateRoot.GetUncommittedEvents()?.Count > 0)
                 {
-                    var lastedAggregateRoot = await repository.GetAsync(aggregateRootType, aggregateRootId);
+                    var lastedAggregateRoot = await repository.GetAsync<TAggregateRoot, TIdentity>(aggregateRootId);
 
                     if (lastedAggregateRoot != null)
                         await SetAsync(lastedAggregateRoot);
@@ -130,19 +125,19 @@ namespace Voguedi.Domain.Caching
                     return lastedAggregateRoot;
                 }
 
-                return aggregateRoot;
+                return aggregateRoot as TAggregateRoot;
             }
 
             return null;
         }
 
-        public Task SetAsync(IEventSourcedAggregateRoot aggregateRoot)
+        public Task SetAsync(IAggregateRoot aggregateRoot)
         {
             if (aggregateRoot == null)
                 throw new ArgumentNullException(nameof(aggregateRoot));
 
             cacheItemMapping.AddOrUpdate(
-                aggregateRoot.GetAggregateRootId(),
+                aggregateRoot.Id,
                 new AggregateRootCacheItem(aggregateRoot),
                 (key, cacheItem) =>
                 {
@@ -153,7 +148,7 @@ namespace Voguedi.Domain.Caching
             return Task.CompletedTask;
         }
 
-        public async Task RefreshAsync(Type aggregateRootType, object aggregateRootId)
+        public async Task RefreshAsync(Type aggregateRootType, string aggregateRootId)
         {
             if (aggregateRootType == null)
                 throw new ArgumentNullException(nameof(aggregateRootType));

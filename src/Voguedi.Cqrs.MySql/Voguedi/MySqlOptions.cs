@@ -1,6 +1,6 @@
 ﻿namespace Voguedi
 {
-    public sealed class MySqlOptions
+    public class MySqlOptions
     {
         #region Public Properties
 

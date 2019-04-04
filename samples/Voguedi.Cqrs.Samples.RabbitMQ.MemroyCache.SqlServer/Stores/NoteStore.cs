@@ -2,8 +2,8 @@
 using System.Data.SqlClient;
 using System.Threading.Tasks;
 using Dapper;
-using Voguedi.AsyncExecution;
 using Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Stores.DataObjects;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Stores
 {

@@ -14,9 +14,7 @@ namespace Voguedi.Commands
 
         void Restart();
 
-        Task CommitAsync(ProcessingCommand processingCommand);
-
-        Task RejectAsync(ProcessingCommand processingCommand);
+        Task ProcessAsync(ProcessingCommand processingCommand, CommandExecutedResult executedResult);
 
         bool IsInactive(int expiration);
 

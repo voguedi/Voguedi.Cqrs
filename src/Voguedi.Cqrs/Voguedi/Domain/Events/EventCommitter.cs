@@ -1,11 +1,10 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Voguedi.BackgroundWorkers;
 using Voguedi.Domain.Caching;
-using Voguedi.Utils;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Domain.Events
 {
@@ -19,7 +18,7 @@ namespace Voguedi.Domain.Events
         readonly ILogger logger;
         readonly int expiration;
         readonly string backgroundWorkerKey;
-        readonly ConcurrentDictionary<string, ICommittingEventQueue> queueMapping = new ConcurrentDictionary<string, ICommittingEventQueue>();
+        readonly ConcurrentDictionary<string, ICommittingEventQueue> queueMapping;
         bool started;
         bool stopped;
 
@@ -34,7 +33,8 @@ namespace Voguedi.Domain.Events
             this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             expiration = options.MemoryQueueExpiration;
-            backgroundWorkerKey = $"{nameof(EventCommitter)}_{SnowflakeId.Instance.NewId()}";
+            backgroundWorkerKey = $"{nameof(EventCommitter)}_{SnowflakeId.Default().NewId()}";
+            queueMapping = new ConcurrentDictionary<string, ICommittingEventQueue>();
         }
 
         #endregion
@@ -62,7 +62,7 @@ namespace Voguedi.Domain.Events
             foreach (var item in queue)
             {
                 if (queueMapping.TryRemove(item.Key))
-                    logger.LogInformation($"不活跃事件提交队列清理成功！ [AggregateRootId = {item.Key}, Expiration = {expiration}]");
+                    logger.LogDebug($"已过期队列清理成功。 [AggregateRootId = {item.Key}, Expiration = {expiration}]");
             }
         }
 
@@ -72,13 +72,9 @@ namespace Voguedi.Domain.Events
 
         public Task CommitAsync(CommittingEvent committingEvent)
         {
-            var aggregateRootId = committingEvent.ProcessingCommand.Command.AggregateRootId;
-
-            if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new ArgumentException(nameof(committingEvent), $"事件 {committingEvent.Stream} 处理的聚合根 Id 不能为空！");
-
-            var queue = queueMapping.GetOrAdd(aggregateRootId, queueFactory.Create);
-            queue.Enqueue(committingEvent);
+            queueMapping
+                .GetOrAdd(committingEvent.ProcessingCommand.Command.AggregateRootId, queueFactory.Create)
+                .Enqueue(committingEvent);
             return SetAggregateRootCache(committingEvent);
         }
 

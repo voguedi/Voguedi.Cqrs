@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
-using Voguedi.AsyncExecution;
 using Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Stores;
 using Voguedi.Domain.Events;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Domain.Events.Handlers
 {

@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Voguedi.Commands;
 using Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Commands;
 using Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Stores;
-using Voguedi.Utils;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Controllers
 {

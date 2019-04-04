@@ -1,11 +1,10 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Voguedi.ApplicationMessages;
-using Voguedi.AsyncExecution;
 using Voguedi.Commands;
 using Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.ApplicationMessages;
 using Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Domain.Model;
 using Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Stores;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Commands.Handlers
 {
@@ -29,7 +28,7 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Commands.Handlers
         #region ICommandHandler<CreateNoteCommand>
 
         public Task HandleAsync(ICommandHandlerContext context, CreateNoteCommand command)
-            => context.CreateAggregateRootAsync<Note, string>(new Note(command.AggregateRootId, command.Title, command.Content));
+            => context.AddAsync<Note, string>(new Note(command.AggregateRootId, command.Title, command.Content));
 
         #endregion
 
@@ -56,7 +55,7 @@ namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Commands.Handlers
 
         public async Task HandleAsync(ICommandHandlerContext context, ModifyNoteCommand command)
         {
-            var note = await context.GetAggregateRootAsync<Note, string>(command.AggregateRootId);
+            var note = await context.GetAsync<Note, string>(command.AggregateRootId);
             note.Modify(command.Title, command.Content);
         }
 

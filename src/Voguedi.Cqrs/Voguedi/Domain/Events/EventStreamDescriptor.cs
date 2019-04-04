@@ -2,7 +2,7 @@
 
 namespace Voguedi.Domain.Events
 {
-    public sealed class EventStreamDescriptor
+    public class EventStreamDescriptor
     {
         #region Public Properties
 

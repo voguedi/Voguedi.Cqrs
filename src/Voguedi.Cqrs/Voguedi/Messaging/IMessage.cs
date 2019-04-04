@@ -16,6 +16,8 @@ namespace Voguedi.Messaging
 
         string GetRoutingKey();
 
+        string GetTag();
+
         #endregion
     }
 }

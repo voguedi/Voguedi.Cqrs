@@ -13,8 +13,8 @@ namespace Voguedi.Domain.Events
         readonly string aggregateRootId;
         readonly ICommittingEventHandler handler;
         readonly ILogger logger;
-        readonly BlockingCollection<CommittingEvent> queue = new BlockingCollection<CommittingEvent>(new ConcurrentQueue<CommittingEvent>());
-        readonly object syncLock = new object();
+        readonly BlockingCollection<CommittingEvent> queue;
+        readonly object syncLock;
         const int starting = 1;
         const int stop = 0;
         int isStarting;
@@ -29,6 +29,8 @@ namespace Voguedi.Domain.Events
             this.aggregateRootId = aggregateRootId;
             this.handler = handler;
             this.logger = logger;
+            queue = new BlockingCollection<CommittingEvent>(new ConcurrentQueue<CommittingEvent>());
+            syncLock = new object();
             lastActiveOn = DateTime.UtcNow;
         }
 
@@ -39,7 +41,7 @@ namespace Voguedi.Domain.Events
         void TryStart()
         {
             if (Interlocked.CompareExchange(ref isStarting, starting, stop) == stop)
-                Task.Factory.StartNew(async () => await StartAsync());
+                Task.Factory.StartNew(StartAsync);
         }
 
         async Task StartAsync()
@@ -49,15 +51,12 @@ namespace Voguedi.Domain.Events
 
             try
             {
-                while (!queue.IsCompleted)
-                {
-                    if (queue.TryTake(out committingEvent) && committingEvent != null)
-                        await handler.HandleAsync(committingEvent);
-                }
+                while (!queue.IsCompleted && queue.TryTake(out committingEvent))
+                    await handler.HandleAsync(committingEvent);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"事件提交队列启动失败！ [AggregateRootId = {aggregateRootId}]");
+                logger.LogError(ex, $"队列启动失败。 [AggregateRootId = {aggregateRootId}]");
                 Thread.Sleep(1);
             }
             finally
@@ -74,6 +73,12 @@ namespace Voguedi.Domain.Events
 
         void Stop() => Interlocked.Exchange(ref isStarting, stop);
 
+        void Restart()
+        {
+            Stop();
+            TryStart();
+        }
+
         #endregion
 
         #region ICommittingEventQueue
@@ -88,6 +93,12 @@ namespace Voguedi.Domain.Events
 
             lastActiveOn = DateTime.UtcNow;
             TryStart();
+        }
+
+        public Task CommitAsync()
+        {
+            Restart();
+            return Task.CompletedTask;
         }
 
         public void Clear()

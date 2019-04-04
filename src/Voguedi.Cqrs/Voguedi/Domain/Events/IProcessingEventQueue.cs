@@ -10,9 +10,7 @@ namespace Voguedi.Domain.Events
 
         void EnqueueToWaiting(ProcessingEvent processingEvent);
 
-        Task CommitAsync(ProcessingEvent processingEvent);
-
-        Task RejectAsync(ProcessingEvent processingEvent);
+        Task ProcessAsync(ProcessingEvent processingEvent);
 
         bool IsInactive(int expiration);
 

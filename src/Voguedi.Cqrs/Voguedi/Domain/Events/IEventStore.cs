@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
-using Voguedi.AsyncExecution;
+using Voguedi.Domain.AggregateRoots;
+using Voguedi.Infrastructure;
 using Voguedi.Services;
 
 namespace Voguedi.Domain.Events
@@ -14,6 +15,9 @@ namespace Voguedi.Domain.Events
         Task<AsyncExecutedResult<EventStream>> GetByCommandIdAsync(string aggregateRootId, long commandId);
 
         Task<AsyncExecutedResult<EventStream>> GetByVersionAsync(string aggregateRootId, long version);
+
+        Task<AsyncExecutedResult<IReadOnlyList<EventStream>>> GetAllAsync<TAggregateRoot, TIdentity>(TIdentity aggregateRootId, long minVersion = -1L, long maxVersion = long.MaxValue)
+            where TAggregateRoot : class, IAggregateRoot<TIdentity>;
 
         Task<AsyncExecutedResult<IReadOnlyList<EventStream>>> GetAllAsync(
             string aggregateRootTypeName,

@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Polly;
 using Voguedi.Commands;
 using Voguedi.Domain.Caching;
 using Voguedi.Domain.Repositories;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Domain.Events
 {
@@ -36,18 +38,20 @@ namespace Voguedi.Domain.Events
 
         async Task PublishStreamAsync(EventStream stream, ProcessingCommand processingCommand)
         {
-            var result = await publisher.PublishStreamAsync(stream);
+            var result = await Policy
+                .Handle<Exception>()
+                .OrResult<AsyncExecutedResult>(r => !r.Succeeded)
+                .WaitAndRetryForeverAsync(retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                    (delegateResult, retryCount, retryAttempt) => logger.LogError(delegateResult.Exception ?? delegateResult.Result.Exception, $"命令产生的事件发布失败，重试。 [EventStream = {stream}, RetryCount = {retryCount}, RetryAttempt = {retryAttempt}]"))
+                .ExecuteAsync(() => publisher.PublishStreamAsync(stream));
 
             if (result.Succeeded)
             {
-                logger.LogInformation($"事件发布成功！ {stream}");
-                await processingCommand.OnQueueCommittedAsync();
+                logger.LogDebug($"命令产生的事件发布成功。 {stream}");
+                await processingCommand.OnQueueProcessedAsync(CommandExecutedStatus.Succeeded);
             }
             else
-            {
-                logger.LogError(result.Exception, $"事件发布失败！ {stream}");
-                await processingCommand.OnQueueRejectedAsync();
-            }
+                logger.LogError(result.Exception, $"命令产生的事件发布失败。 {stream}");
         }
 
         async Task ResetProcessingCommandQueueSequenceAsync(CommittingEvent committingEvent, long queueSequence)
@@ -63,11 +67,11 @@ namespace Voguedi.Domain.Events
                 await SetAggregateRootCacheAsync(committingEvent);
                 processingCommandQueue.ResetSequence(queueSequence);
                 committingEventQueue.Clear();
-                logger.LogInformation($"重置命令处理队列序号成功！ [AggregateRootId = {command.AggregateRootId}, CommandType = {command.GetType()}, CommandId = {command.Id}]");
+                logger.LogDebug($"重置命令队列序号成功，重启命令队列。 [AggregateRootId = {command.AggregateRootId}, CommandType = {command.GetType()}, CommandId = {command.Id}]");
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"重置命令处理队列序号失败！ [AggregateRootId = {command.AggregateRootId}, CommandType = {command.GetType()}, CommandId = {command.Id}]");
+                logger.LogError(ex, $"重置命令队列序号失败，重启命令队列。 [AggregateRootId = {command.AggregateRootId}, CommandType = {command.GetType()}, CommandId = {command.Id}]");
             }
             finally
             {
@@ -78,7 +82,7 @@ namespace Voguedi.Domain.Events
         Task SetAggregateRootCacheAsync(CommittingEvent committingEvent)
         {
             var aggregateRoot = committingEvent.AggregateRoot;
-            return cache.RefreshAsync(aggregateRoot.GetAggregateRootType(), aggregateRoot.GetAggregateRootId());
+            return cache.RefreshAsync(aggregateRoot.GetType(), aggregateRoot.Id);
         }
 
         async Task TryGetAndPublishStreamAsync(CommittingEvent committingEvent)
@@ -86,8 +90,13 @@ namespace Voguedi.Domain.Events
             var processingCommand = committingEvent.ProcessingCommand;
             var command = processingCommand.Command;
             var commandId = command.Id;
-            var aggregateRootId = committingEvent.AggregateRoot.GetAggregateRootId();
-            var result = await store.GetByCommandIdAsync(aggregateRootId, commandId);
+            var aggregateRootId = committingEvent.AggregateRoot.Id;
+            var result = await Policy
+                .Handle<Exception>()
+                .OrResult<AsyncExecutedResult<EventStream>>(r => !r.Succeeded)
+                .WaitAndRetryForeverAsync(retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                    (delegateResult, retryCount, retryAttempt) => logger.LogError(delegateResult.Exception ?? delegateResult.Result.Exception, $"获取已产生的事件失败，重试。 [CommandType = {command.GetType()}, CommandId = {commandId}, AggregateRootId = {aggregateRootId}, RetryCount = {retryCount}, RetryAttempt = {retryAttempt}]"))
+                .ExecuteAsync(() => store.GetByCommandIdAsync(aggregateRootId, commandId));
 
             if (result.Succeeded)
             {
@@ -95,20 +104,17 @@ namespace Voguedi.Domain.Events
 
                 if (stream != null)
                 {
-                    logger.LogInformation($"获取已存储的事件成功！ [CommandType = {command.GetType()}, CommandId = {commandId}, AggregateRootId = {aggregateRootId}, EventStream = {stream}]");
+                    logger.LogDebug($"获取已产生的事件成功，发布事件。 [CommandType = {command.GetType()}, CommandId = {commandId}, AggregateRootId = {aggregateRootId}, EventStream = {stream}]");
                     await PublishStreamAsync(stream, processingCommand);
                 }
                 else
                 {
-                    logger.LogError($"未获取任何已存储的事件！ [CommandType = {command.GetType()}, CommandId = {commandId}, AggregateRootId = {aggregateRootId}]");
-                    await processingCommand.OnQueueRejectedAsync();
+                    logger.LogWarning($"未获取到任何已产生的事件。 [CommandType = {command.GetType()}, CommandId = {commandId}, AggregateRootId = {aggregateRootId}]");
+                    await processingCommand.OnQueueProcessedAsync(CommandExecutedStatus.Failed, "命令产生的事件存储失败，存在相同的命令，未获取到任何已产生的事件。");
                 }
             }
             else
-            {
-                logger.LogError(result.Exception, $"获取已存储的事件失败！ [CommandType = {command.GetType()}, CommandId = {commandId}, AggregateRootId = {aggregateRootId}]");
-                await processingCommand.OnQueueRejectedAsync();
-            }
+                logger.LogError(result.Exception, $"获取已产生的事件失败。 [CommandType = {command.GetType()}, CommandId = {commandId}, AggregateRootId = {aggregateRootId}]");
         }
 
         async Task TryGetAndPublishFirstStreamAsync(CommittingEvent committingEvent)
@@ -116,7 +122,12 @@ namespace Voguedi.Domain.Events
             var stream = committingEvent.Stream;
             var aggregateRootId = stream.AggregateRootId;
             var processingCommand = committingEvent.ProcessingCommand;
-            var result = await store.GetByVersionAsync(aggregateRootId, 1);
+            var result = await Policy
+                .Handle<Exception>()
+                .OrResult<AsyncExecutedResult<EventStream>>(r => !r.Succeeded)
+                .WaitAndRetryForeverAsync(retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                    (delegateResult, retryCount, retryAttempt) => logger.LogError(delegateResult.Exception ?? delegateResult.Result.Exception, $"获取已产生的事件失败，重试。 [AggregateRootType = {committingEvent.AggregateRoot.GetType()}, AggregateRootId = {aggregateRootId}, Version = 1, RetryCount = {retryCount}, RetryAttempt = {retryAttempt}]"))
+                .ExecuteAsync(() => store.GetByVersionAsync(aggregateRootId, 1));
 
             if (result.Succeeded)
             {
@@ -128,30 +139,26 @@ namespace Voguedi.Domain.Events
 
                     if (firstStream.CommandId == command.Id)
                     {
-                        logger.LogInformation($"获取已存储的第一个版本事件成功！ [AggregateRootType = {committingEvent.AggregateRoot.GetAggregateRootType()}, AggregateRootId = {aggregateRootId}, Version = 1, EventStream = {firstStream}]");
-                        await ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence);
-                        await PublishStreamAsync(firstStream, processingCommand);
+                        logger.LogDebug($"获取已产生的事件成功，重置命令处理队列序号，发布事件。 [AggregateRootType = {committingEvent.AggregateRoot.GetType()}, AggregateRootId = {aggregateRootId}, Version = 1, EventStream = {firstStream}]");
+                        await ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence)
+                            .ContinueWith(c => PublishStreamAsync(firstStream, processingCommand));
                     }
                     else
                     {
-                        logger.LogError($"存在不同命令重复处理相同聚合根！ [AggregateRootType = {committingEvent.AggregateRoot.GetAggregateRootType()}, AggregateRootId = {aggregateRootId}, Version = 1, CommittingEventStream = {stream}, StoredEventStream = {firstStream}]");
-                        await ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence + 1);
-                        await processingCommand.OnQueueRejectedAsync();
+                        logger.LogWarning($"获取已产生的事件成功，存在不同命令重复处理同一聚合根，重置命令处理队列序号。 [AggregateRootType = {committingEvent.AggregateRoot.GetType()}, AggregateRootId = {aggregateRootId}, Version = 1, CommittingEventStream = {stream}, StoredEventStream = {firstStream}]");
+                        await ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence + 1)
+                            .ContinueWith(c => processingCommand.OnQueueProcessedAsync(CommandExecutedStatus.Failed, "命令产生的事件存储失败，存在相同的版本，不同命令重复处理同一聚合根。"));
                     }
                 }
                 else
                 {
-                    logger.LogError($"未获取任何已存储的第一个版本事件！ [AggregateRootType = {committingEvent.AggregateRoot.GetAggregateRootType()}, AggregateRootId = {aggregateRootId}, Version = 1]");
-                    await ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence + 1);
-                    await processingCommand.OnQueueRejectedAsync();
+                    logger.LogWarning($"未获取任何已产生的事件，重置命令处理队列序号。 [AggregateRootType = {committingEvent.AggregateRoot.GetType()}, AggregateRootId = {aggregateRootId}, Version = 1]");
+                    await ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence + 1)
+                            .ContinueWith(c => processingCommand.OnQueueProcessedAsync(CommandExecutedStatus.Failed, "命令产生的事件存储失败，存在相同的版本，未获取到任何已产生的事件。"));
                 }
             }
             else
-            {
-                logger.LogError(result.Exception, $"获取已存储的第一个版本事件失败！ [AggregateRootType = {committingEvent.AggregateRoot.GetAggregateRootType()}, AggregateRootId = {aggregateRootId}, Version = 1]");
-                await ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence + 1);
-                await processingCommand.OnQueueRejectedAsync();
-            }
+                logger.LogError(result.Exception, $"获取已产生的事件失败。 [AggregateRootType = {committingEvent.AggregateRoot.GetType()}, AggregateRootId = {aggregateRootId}, Version = 1]");
         }
 
         #endregion
@@ -162,7 +169,12 @@ namespace Voguedi.Domain.Events
         {
             var stream = committingEvent.Stream;
             var processingCommand = committingEvent.ProcessingCommand;
-            var result = await store.SaveAsync(stream);
+            var result = await Policy
+                .Handle<Exception>()
+                .OrResult<AsyncExecutedResult<EventStreamSavedResult>>(r => !r.Succeeded)
+                .WaitAndRetryForeverAsync(retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                    (delegateResult, retryCount, retryAttempt) => logger.LogError(delegateResult.Exception ?? delegateResult.Result.Exception, $"命令产生的事件存储失败，重试。 [EventStream = {stream}, RetryCount = {retryCount}, RetryAttempt = {retryAttempt}]"))
+                .ExecuteAsync(() => store.SaveAsync(stream));
 
             if (result.Succeeded)
             {
@@ -170,12 +182,13 @@ namespace Voguedi.Domain.Events
 
                 if (savedResult == EventStreamSavedResult.Success)
                 {
-                    logger.LogInformation($"事件存储成功！ {stream}");
+                    logger.LogDebug($"命令产生的事件存储成功。 {stream}");
                     await PublishStreamAsync(stream, processingCommand);
+                    await committingEvent.OnQueueCommitted();
                 }
                 else if (savedResult == EventStreamSavedResult.DuplicatedCommand)
                 {
-                    logger.LogError($"事件存储失败，存在相同的命令，尝试重置命令处理队列序号和获取已存储的事件！ {stream}");
+                    logger.LogWarning($"命令产生的事件存储失败，存在相同的命令，重置命令处理队列序号，尝试获取是否已有事件产生并发布。 {stream}");
                     await ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence + 1);
                     await TryGetAndPublishStreamAsync(committingEvent);
                 }
@@ -183,22 +196,19 @@ namespace Voguedi.Domain.Events
                 {
                     if (stream.Version == 1)
                     {
-                        logger.LogError($"事件存储失败，存在相同的版本，尝试获取已存储的第一个版本事件！ {stream}");
+                        logger.LogWarning($"命令产生的事件存储失败，存在相同的版本，尝试获取是否已有事件产生并发布。 {stream}");
                         await TryGetAndPublishFirstStreamAsync(committingEvent);
                     }
                     else
                     {
-                        logger.LogError($"事件存储失败，存在相同的版本，尝试重置命令处理队列序号！ {stream}");
-                        await ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence);
-                        await processingCommand.OnQueueRejectedAsync();
+                        logger.LogWarning($"命令产生的事件存储失败，存在相同的版本，不同命令重复处理同一聚合根，重置命令处理队列序号。 {stream}");
+                        await ResetProcessingCommandQueueSequenceAsync(committingEvent, processingCommand.QueueSequence)
+                            .ContinueWith(c => processingCommand.OnQueueProcessedAsync(CommandExecutedStatus.Failed, "命令产生的事件存储失败，存在相同的版本，不同命令重复处理同一聚合根。"));
                     }
                 }
             }
             else
-            {
-                logger.LogError(result.Exception, $"事件存储失败！ {stream}");
-                await processingCommand.OnQueueRejectedAsync();
-            }
+                logger.LogError(result.Exception, $"命令产生的事件存储失败。 {stream}");
         }
 
         #endregion

@@ -8,7 +8,9 @@ namespace Voguedi.Domain.Repositories
     {
         #region Methods
 
-        Task<IEventSourcedAggregateRoot> GetAsync(Type aggregateRootType, object aggregateRootId);
+        Task<TAggregateRoot> GetAsync<TAggregateRoot, TIdentity>(TIdentity aggregateRootId) where TAggregateRoot : class, IAggregateRoot<TIdentity>;
+
+        Task<IAggregateRoot> GetAsync(Type aggregateRootType, string aggregateRootId);
 
         #endregion
     }

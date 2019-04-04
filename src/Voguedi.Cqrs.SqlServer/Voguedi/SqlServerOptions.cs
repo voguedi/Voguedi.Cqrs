@@ -1,6 +1,6 @@
 ﻿namespace Voguedi
 {
-    public sealed class SqlServerOptions
+    public class SqlServerOptions
     {
         #region Public Properties
 

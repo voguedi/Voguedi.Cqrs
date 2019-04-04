@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Nito.AsyncEx;
 
 namespace Voguedi.Domain.Events
 {
@@ -14,10 +13,9 @@ namespace Voguedi.Domain.Events
         readonly string aggregateRootId;
         readonly IProcessingEventHandler handler;
         readonly ILogger logger;
-        readonly BlockingCollection<ProcessingEvent> queue = new BlockingCollection<ProcessingEvent>(new ConcurrentQueue<ProcessingEvent>());
-        readonly ConcurrentDictionary<long, ProcessingEvent> waitingQueue = new ConcurrentDictionary<long, ProcessingEvent>();
-        readonly object syncLock = new object();
-        readonly AsyncLock asyncLock = new AsyncLock();
+        readonly BlockingCollection<ProcessingEvent> queue;
+        readonly ConcurrentDictionary<long, ProcessingEvent> waitingQueue;
+        readonly object syncLock;
         const int starting = 1;
         const int stop = 0;
         int isStarting;
@@ -32,6 +30,9 @@ namespace Voguedi.Domain.Events
             this.aggregateRootId = aggregateRootId;
             this.handler = handler;
             this.logger = logger;
+            queue = new BlockingCollection<ProcessingEvent>(new ConcurrentQueue<ProcessingEvent>());
+            waitingQueue = new ConcurrentDictionary<long, ProcessingEvent>();
+            syncLock = new object();
             lastActiveOn = DateTime.UtcNow;
         }
 
@@ -42,7 +43,7 @@ namespace Voguedi.Domain.Events
         void TryStart()
         {
             if (Interlocked.CompareExchange(ref isStarting, starting, stop) == stop)
-                Task.Factory.StartNew(async () => await StartAsync());
+                Task.Factory.StartNew(StartAsync);
         }
 
         async Task StartAsync()
@@ -52,15 +53,12 @@ namespace Voguedi.Domain.Events
 
             try
             {
-                while (!queue.IsCompleted)
-                {
-                    if (queue.TryTake(out processingEvent) && processingEvent != null)
-                        await handler.HandleAsync(processingEvent);
-                }
+                while (!queue.IsCompleted && queue.TryTake(out processingEvent))
+                    await handler.HandleAsync(processingEvent);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"事件处理队列启动失败！ [AggregateRootId = {aggregateRootId}]");
+                logger.LogError(ex, $"队列启动失败。 [AggregateRootId = {aggregateRootId}]");
                 Thread.Sleep(1);
             }
             finally
@@ -108,34 +106,14 @@ namespace Voguedi.Domain.Events
             Restart();
         }
 
-        public async Task CommitAsync(ProcessingEvent processingEvent)
+        public async Task ProcessAsync(ProcessingEvent processingEvent)
         {
-            using (await asyncLock.LockAsync())
-            {
-                lastActiveOn = DateTime.UtcNow;
-                var currentVersion = processingEvent.Stream.Version;
-                await processingEvent.OnConsumerCommittedAsync();
+            lastActiveOn = DateTime.UtcNow;
 
-                if (waitingQueue.TryGetValue(currentVersion + 1, out var next))
-                    await handler.HandleAsync(next);
-                else
-                    Restart();
-            }
-        }
-
-        public async Task RejectAsync(ProcessingEvent processingEvent)
-        {
-            using (await asyncLock.LockAsync())
-            {
-                lastActiveOn = DateTime.UtcNow;
-                var currentVersion = processingEvent.Stream.Version;
-                await processingEvent.OnConsumerRejectedAsync();
-
-                if (waitingQueue.TryGetValue(currentVersion + 1, out var next))
-                    await next.OnConsumerRejectedAsync();
-                else
-                    Restart();
-            }
+            if (waitingQueue.TryGetValue(processingEvent.Stream.Version + 1, out var waiting))
+                await handler.HandleAsync(waiting);
+            else
+                Restart();
         }
 
         public bool IsInactive(int expiration) => (DateTime.UtcNow - lastActiveOn).TotalSeconds >= expiration && isStarting == starting;

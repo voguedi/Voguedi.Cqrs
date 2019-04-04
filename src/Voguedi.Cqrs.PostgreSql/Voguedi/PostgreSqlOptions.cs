@@ -1,6 +1,6 @@
 ﻿namespace Voguedi
 {
-    public sealed class PostgreSqlOptions
+    public class PostgreSqlOptions
     {
         #region Public Properties
 

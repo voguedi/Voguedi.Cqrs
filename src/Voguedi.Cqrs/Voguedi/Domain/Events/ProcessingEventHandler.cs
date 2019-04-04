@@ -6,7 +6,8 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Voguedi.AsyncExecution;
+using Polly;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Domain.Events
 {
@@ -17,7 +18,7 @@ namespace Voguedi.Domain.Events
         readonly IEventVersionStore versionStore;
         readonly IServiceProvider serviceProvider;
         readonly ILogger logger;
-        readonly ConcurrentDictionary<Type, IReadOnlyList<IEventHandler>> handlerMapping = new ConcurrentDictionary<Type, IReadOnlyList<IEventHandler>>();
+        readonly ConcurrentDictionary<Type, IReadOnlyList<IEventHandler>> handlerMapping;
 
         #endregion
 
@@ -28,6 +29,7 @@ namespace Voguedi.Domain.Events
             this.versionStore = versionStore;
             this.serviceProvider = serviceProvider;
             this.logger = logger;
+            handlerMapping = new ConcurrentDictionary<Type, IReadOnlyList<IEventHandler>>();
         }
 
         #endregion
@@ -44,14 +46,14 @@ namespace Voguedi.Domain.Events
                 {
                     var queue = BuildHandlingEventQueue(events, serviceScope);
 
-                    if (!queue.IsCompleted && queue.TryTake(out var current) && current.Event != null && current.Handler != null)
+                    if (!queue.IsCompleted && queue.TryTake(out var current))
                         return HandleEventAsync(processingEvent, current, queue);
 
                     return SaveVersionAsync(processingEvent);
                 }
             }
 
-            return processingEvent.OnQueueCommittedAsync();
+            return processingEvent.OnQueueProcessedAsync();
         }
 
         BlockingCollection<(IEvent Event, IEventHandler Handler)> BuildHandlingEventQueue(IReadOnlyList<IEvent> events, IServiceScope serviceScope)
@@ -90,49 +92,44 @@ namespace Voguedi.Domain.Events
             var eventType = e.GetType();
             var handler = current.Handler;
             var handlerType = handler.GetType();
+            var handlerMethod = handlerType.GetTypeInfo().GetMethod("HandleAsync", new[] { eventType });
+            var result = await Policy
+                .Handle<Exception>()
+                .OrResult<AsyncExecutedResult>(r => !r.Succeeded)
+                .WaitAndRetryForeverAsync(retryAttempt => TimeSpan.FromSeconds(Math.Pow(1, retryAttempt)),
+                    (delegateResult, retryCount, retryAttempt) => logger.LogError(delegateResult.Exception ?? delegateResult.Result.Exception, $"事件处理器执行失败，重试。 [EventType = {eventType}, EventId = {e.Id}, EventHandlerType = {handlerType}, RetryCount = {retryCount}, RetryAttempt = {retryAttempt}]"))
+                .ExecuteAsync(() => (Task<AsyncExecutedResult>)handlerMethod.Invoke(handler, new object[] { e }));
 
-            try
+            if (result.Succeeded)
             {
-                var handlerMethod = handlerType.GetTypeInfo().GetMethod("HandleAsync", new[] { eventType });
-                var result = await (Task<AsyncExecutedResult>)handlerMethod.Invoke(handler, new object[] { e });
+                logger.LogDebug($"事件处理器执行成功。 [EventType = {eventType}, EventId = {e.Id}, EventHandlerType = {handlerType}]");
 
-                if (result.Succeeded)
-                {
-                    logger.LogInformation($"事件处理器执行成功！ [EventType = {eventType}, EventId = {e.Id}, EventHandlerType = {handlerType}]");
-
-                    if (!queue.IsCompleted && queue.TryTake(out var next) && next.Event != null && next.Handler != null)
-                        await HandleEventAsync(processingEvent, next, queue);
-                    else
-                        await SaveVersionAsync(processingEvent);
-                }
+                if (!queue.IsCompleted && queue.TryTake(out var next) && next.Event != null && next.Handler != null)
+                    await HandleEventAsync(processingEvent, next, queue);
                 else
-                {
-                    logger.LogError(result.Exception, $"事件处理器执行失败！ [EventType = {eventType}, EventId = {e.Id}, EventHandlerType = {handlerType}]");
-                    await processingEvent.OnQueueRejectedAsync();
-                }
+                    await SaveVersionAsync(processingEvent);
             }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"事件处理器执行失败！ [EventType = {eventType}, EventId = {e.Id}, EventHandlerType = {handlerType}]");
-                await processingEvent.OnQueueRejectedAsync();
-            }
+            else
+                logger.LogError(result.Exception, $"事件处理器执行失败。 [EventType = {eventType}, EventId = {e.Id}, EventHandlerType = {handlerType}]");
         }
 
         async Task SaveVersionAsync(ProcessingEvent processingEvent)
         {
             var stream = processingEvent.Stream;
-            var result = await versionStore.SaveAsync(stream.AggregateRootTypeName, stream.AggregateRootId, stream.Version);
+            var result = await Policy
+                .Handle<Exception>()
+                .OrResult<AsyncExecutedResult>(r => !r.Succeeded)
+                .WaitAndRetryForeverAsync(retryAttempt => TimeSpan.FromSeconds(Math.Pow(1, retryAttempt)),
+                    (delegateResult, retryCount, retryAttempt) => logger.LogError(delegateResult.Exception ?? delegateResult.Result.Exception, $"事件版本存储失败，重试。 [EventStream = {stream}, RetryCount = {retryCount}, RetryAttempt = {retryAttempt}]"))
+                .ExecuteAsync(() => versionStore.SaveAsync(stream.AggregateRootTypeName, stream.AggregateRootId, stream.Version));
 
             if (result.Succeeded)
             {
-                logger.LogInformation($"已发布事件版本存储成功！ {stream}");
-                await processingEvent.OnQueueCommittedAsync();
+                logger.LogDebug($"事件版本存储成功。 {stream}");
+                await processingEvent.OnQueueProcessedAsync();
             }
             else
-            {
-                logger.LogError(result.Exception, $"已发布事件版本存储失败！ {stream}");
-                await processingEvent.OnQueueRejectedAsync();
-            }
+                logger.LogError(result.Exception, $"事件版本存储失败。 {stream}");
         }
 
         #endregion
@@ -143,7 +140,12 @@ namespace Voguedi.Domain.Events
         {
             var stream = processingEvent.Stream;
             var streamVersion = stream.Version;
-            var result = await versionStore.GetAsync(stream.AggregateRootTypeName, stream.AggregateRootId);
+            var result = await Policy
+                .Handle<Exception>()
+                .OrResult<AsyncExecutedResult<long>>(r => !r.Succeeded)
+                .WaitAndRetryForeverAsync(retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                    (delegateResult, retryCount, retryAttempt) => logger.LogError(delegateResult.Exception ?? delegateResult.Result.Exception, $"获取已发布事件版本失败。 [EventStream = {stream}, RetryCount = {retryCount}, RetryAttempt = {retryAttempt}]"))
+                .ExecuteAsync(() => versionStore.GetAsync(stream.AggregateRootTypeName, stream.AggregateRootId));
 
             if (result.Succeeded)
             {
@@ -152,25 +154,22 @@ namespace Voguedi.Domain.Events
 
                 if (streamVersion == exceptedVersion)
                 {
-                    logger.LogInformation($"获取已发布事件版本成功！ {stream}");
+                    logger.LogDebug($"获取事件版本成功。 {stream}");
                     await DispatchEventAsync(processingEvent);
                 }
                 else if (streamVersion > exceptedVersion)
                 {
-                    logger.LogInformation($"当前事件版本大于待处理版本，等待处理！ [StoredVersion = {storedVersion}, ProcessingEventStream = {stream}]");
+                    logger.LogDebug($"当前事件版本大于待处理版本，等待处理。 [StoredVersion = {storedVersion}, ProcessingEventStream = {stream}]");
                     processingEvent.EnqueueToWaitingQueue();
                 }
                 else
                 {
-                    logger.LogError($"当前事件版本小于待处理版本！ [StoredVersion = {storedVersion}, ProcessingEventStream = {stream}]");
-                    await processingEvent.OnQueueRejectedAsync();
+                    logger.LogError($"当前事件版本小于待处理版本，处理失败。 [StoredVersion = {storedVersion}, ProcessingEventStream = {stream}]");
+                    await processingEvent.OnQueueProcessedAsync();
                 }
             }
             else
-            {
-                logger.LogError(result.Exception, $"获取已发布事件版本失败！ {stream}");
-                await processingEvent.OnQueueRejectedAsync();
-            }
+                logger.LogError(result.Exception, $"获取事件版本失败。 {stream}");
         }
 
         #endregion

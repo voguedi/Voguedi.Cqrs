@@ -6,10 +6,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
-using Microsoft.Extensions.Logging;
-using Voguedi.AsyncExecution;
-using Voguedi.ObjectSerializing;
-using Voguedi.Utils;
+using Voguedi.Infrastructure;
+using Voguedi.ObjectSerializers;
 
 namespace Voguedi.Domain.Events.SqlServer
 {
@@ -18,7 +16,6 @@ namespace Voguedi.Domain.Events.SqlServer
         #region Private Fields
 
         readonly IStringObjectSerializer objectSerializer;
-        readonly ILogger logger;
         readonly string connectionString;
         readonly string schema;
         readonly string tableName;
@@ -56,10 +53,9 @@ namespace Voguedi.Domain.Events.SqlServer
 
         #region Ctors
 
-        public SqlServerEventStore(IStringObjectSerializer objectSerializer, ILogger<SqlServerEventStore> logger, SqlServerOptions options)
+        public SqlServerEventStore(IStringObjectSerializer objectSerializer, SqlServerOptions options)
         {
             this.objectSerializer = objectSerializer;
-            this.logger = logger;
             connectionString = options.ConnectionString;
             schema = options.Schema;
             tableName = options.EventTableName;
@@ -70,30 +66,27 @@ namespace Voguedi.Domain.Events.SqlServer
 
         #region Private Methods
 
-        string GetTableName(string aggregateRootId)
+        string BuildSql(string sql, string aggregateRootId)
         {
             if (tableCount > 1)
-                return $"[{schema}].[{tableName}_{Helper.GetServerIndex(aggregateRootId, tableCount)}]";
+                return string.Format(sql, $"[{schema}].[{tableName}_{Utils.GetServerKey(aggregateRootId, tableCount)}]");
 
-            return $"[{schema}].[{tableName}]";
+            return string.Format(sql, $"[{schema}].[{tableName}]");
         }
-
-        string BuildSql(string sql, string aggregateRootId) => string.Format(sql, GetTableName(aggregateRootId));
 
         EventStreamDescriptor ToStreamDescriptor(EventStream stream)
         {
             var eventContentMapping = new Dictionary<string, string>();
 
-            foreach (var item in stream.Events)
-                eventContentMapping.Add(item.GetType().AssemblyQualifiedName, objectSerializer.Serialize(item));
+            foreach (var e in stream.Events)
+                eventContentMapping.Add(e.GetTag(), objectSerializer.Serialize(e));
 
-            var eventsContent = objectSerializer.Serialize(eventContentMapping);
             return new EventStreamDescriptor
             {
                 AggregateRootId = stream.AggregateRootId,
                 AggregateRootTypeName = stream.AggregateRootTypeName,
                 CommandId = stream.CommandId,
-                Events = eventsContent,
+                Events = objectSerializer.Serialize(eventContentMapping),
                 Id = stream.Id,
                 Timestamp = stream.Timestamp,
                 Version = stream.Version
@@ -103,9 +96,8 @@ namespace Voguedi.Domain.Events.SqlServer
         EventStream ToStream(EventStreamDescriptor streamDescriptor)
         {
             var events = new List<IEvent>();
-            var eventContentMapping = objectSerializer.Deserialize<IDictionary<string, string>>(streamDescriptor.Events);
 
-            foreach (var item in eventContentMapping)
+            foreach (var item in objectSerializer.Deserialize<IDictionary<string, string>>(streamDescriptor.Events))
                 events.Add((IEvent)objectSerializer.Deserialize(item.Value, Type.GetType(item.Key)));
 
             return new EventStream(
@@ -140,7 +132,6 @@ namespace Voguedi.Domain.Events.SqlServer
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"获取事件失败！ [AggregateRootId = {aggregateRootId}, CommandId = {commandId}]");
                 return AsyncExecutedResult<EventStream>.Failed(ex);
             }
         }
@@ -163,7 +154,6 @@ namespace Voguedi.Domain.Events.SqlServer
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"未获取任何事件！ [AggregateRootId = {aggregateRootId}, Version = {version}]");
                 return AsyncExecutedResult<EventStream>.Failed(ex);
             }
         }
@@ -190,10 +180,12 @@ namespace Voguedi.Domain.Events.SqlServer
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"未获取任何事件！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, MinVersion = {minVersion}, MaxVersion = {maxVersion}]");
                 return AsyncExecutedResult<IReadOnlyList<EventStream>>.Failed(ex);
             }
         }
+
+        Task<AsyncExecutedResult<IReadOnlyList<EventStream>>> IEventStore.GetAllAsync<TAggregateRoot, TIdentity>(TIdentity aggregateRootId, long minVersion, long maxVersion)
+            => GetAllAsync(typeof(TAggregateRoot).FullName, aggregateRootId.ToString(), minVersion, maxVersion);
 
         public async Task<AsyncExecutedResult<EventStreamSavedResult>> SaveAsync(EventStream stream)
         {
@@ -202,7 +194,6 @@ namespace Voguedi.Domain.Events.SqlServer
                 using (var connection = new SqlConnection(connectionString))
                 {
                     await connection.ExecuteAsync(BuildSql(saveSql, stream.AggregateRootId), ToStreamDescriptor(stream));
-                    logger.LogInformation($"事件存储成功！ {stream}");
                     return AsyncExecutedResult<EventStreamSavedResult>.Success(EventStreamSavedResult.Success);
                 }
             }
@@ -214,12 +205,10 @@ namespace Voguedi.Domain.Events.SqlServer
                 if (ex.Number == 2601 && ex.Message.Contains(commandIdUniqueIndexName))
                     return AsyncExecutedResult<EventStreamSavedResult>.Success(EventStreamSavedResult.DuplicatedCommand);
 
-                logger.LogError(ex, $"事件存储失败！ {stream}");
                 return AsyncExecutedResult<EventStreamSavedResult>.Failed(ex, EventStreamSavedResult.Failed);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"事件存储失败！ {stream}");
                 return AsyncExecutedResult<EventStreamSavedResult>.Failed(ex, EventStreamSavedResult.Failed);
             }
         }
@@ -232,23 +221,14 @@ namespace Voguedi.Domain.Events.SqlServer
 
                 if (tableCount > 1)
                 {
-                    for (int i = 0, j = tableCount; i < j; i++)
+                    for (var i = 0; i < tableCount; i++)
                         sql.AppendFormat(initializeSql, schema, $"{tableName}_{i}");
                 }
                 else
                     sql.AppendFormat(initializeSql, schema, tableName);
 
-                try
-                {
-                    using (var connection = new SqlConnection(connectionString))
-                        await connection.ExecuteAsync(sql.ToString());
-
-                    logger.LogInformation($"事件存储器初始化成功！ [Sql = {sql}]");
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, $"事件存储器初始化失败！ [Sql = {sql}]");
-                }
+                using (var connection = new SqlConnection(connectionString))
+                    await connection.ExecuteAsync(sql.ToString());
             }
         }
 

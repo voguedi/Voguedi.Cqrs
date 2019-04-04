@@ -1,13 +1,14 @@
-﻿using Voguedi.Commands;
+﻿using System.Threading.Tasks;
+using Voguedi.Commands;
 using Voguedi.Domain.AggregateRoots;
 
 namespace Voguedi.Domain.Events
 {
-    public sealed class CommittingEvent
+    public class CommittingEvent
     {
         #region Ctors
 
-        public CommittingEvent(EventStream stream, ProcessingCommand processingCommand, IEventSourcedAggregateRoot aggregateRoot)
+        public CommittingEvent(EventStream stream, ProcessingCommand processingCommand, IAggregateRoot aggregateRoot)
         {
             Stream = stream;
             ProcessingCommand = processingCommand;
@@ -22,9 +23,15 @@ namespace Voguedi.Domain.Events
 
         public ProcessingCommand ProcessingCommand { get; }
 
-        public IEventSourcedAggregateRoot AggregateRoot { get; }
+        public IAggregateRoot AggregateRoot { get; }
 
         public ICommittingEventQueue Queue { get; set; }
+
+        #endregion
+
+        #region Public Methods
+
+        public Task OnQueueCommitted() => Queue.CommitAsync();
 
         #endregion
     }

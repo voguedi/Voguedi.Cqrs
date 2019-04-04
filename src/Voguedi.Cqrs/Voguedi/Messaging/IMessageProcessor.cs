@@ -6,7 +6,7 @@ namespace Voguedi.Messaging
     {
         #region Methods
 
-        void Process(ReceivingMessage receivingMessage, IMessageConsumer consumer);
+        void Process(string receivedMessage);
 
         #endregion
     }

@@ -2,7 +2,8 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Voguedi.DisposableObjects;
+using Voguedi.Infrastructure;
+using Voguedi.MessageQueues;
 
 namespace Voguedi.Messaging
 {
@@ -11,14 +12,14 @@ namespace Voguedi.Messaging
     {
         #region Private Fields
 
-        readonly IMessageConsumerFactory consumerFactory;
+        readonly IMessageQueueConsumerFactory queueConsumerFactory;
         readonly IMessageSubscriptionManager subscriptionManager;
         readonly IMessageProcessor processor;
         readonly ILogger logger;
         readonly string defaultGroupName;
         readonly int defaultTopicQueueCount;
-        readonly TimeSpan timeout = TimeSpan.FromSeconds(1);
-        readonly CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+        readonly TimeSpan timeout;
+        readonly CancellationTokenSource cancellationTokenSource;
         bool disposed;
         Task startedTask;
         bool started;
@@ -28,26 +29,45 @@ namespace Voguedi.Messaging
         #region Ctors
 
         protected MessageSubscriber(
-            IMessageConsumerFactory consumerFactory,
+            IMessageQueueConsumerFactory consumerFactory,
             IMessageSubscriptionManager subscriptionManager,
             IMessageProcessor processor,
             ILogger logger,
             string defaultGroupName,
             int defaultTopicQueueCount)
         {
-            this.consumerFactory = consumerFactory;
+            this.queueConsumerFactory = consumerFactory;
             this.subscriptionManager = subscriptionManager;
             this.processor = processor;
             this.logger = logger;
             this.defaultGroupName = defaultGroupName;
             this.defaultTopicQueueCount = defaultTopicQueueCount;
+            timeout = TimeSpan.FromSeconds(1);
+            cancellationTokenSource = new CancellationTokenSource();
         }
 
         #endregion
 
         #region Private Methods
 
-        void RegisterProcessor(IMessageConsumer consumer) => consumer.Received += (sender, e) => processor.Process(e, consumer);
+        void RegisterProcessor(IMessageQueueConsumer queueConsumer)
+        {
+            queueConsumer.Received += (sender, e) =>
+            {
+                logger.LogDebug($"消息接收成功，开始处理消息。 {e}");
+
+                try
+                {
+                    processor.Process(e.QueueMessage);
+                    queueConsumer.Commit();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, $"已接收消息处理失败。 {e}");
+                    queueConsumer.Reject();
+                }
+            };
+        }
 
         #endregion
 
@@ -67,7 +87,7 @@ namespace Voguedi.Messaging
                     }
                     catch (OperationCanceledException ex)
                     {
-                        logger.LogError(ex, "订阅器操作取消！");
+                        logger.LogError(ex, "操作取消。");
                     }
                 }
 
@@ -91,7 +111,7 @@ namespace Voguedi.Messaging
                     Task.Factory.StartNew(
                         () =>
                         {
-                            using (var consumer = consumerFactory.Create(queue.Key))
+                            using (var consumer = queueConsumerFactory.Create(queue.Key))
                             {
                                 RegisterProcessor(consumer);
                                 consumer.Subscribe(queue.Value);

@@ -10,8 +10,9 @@ namespace Voguedi.Commands
         protected Command() : base() { }
 
         protected Command(TIdentity aggregateRootId)
+            : this()
         {
-            if (Equals(aggregateRootId, default(TIdentity)))
+            if (aggregateRootId == null)
                 throw new ArgumentNullException(nameof(aggregateRootId));
 
             AggregateRootId = aggregateRootId;

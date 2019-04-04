@@ -1,5 +1,5 @@
 ﻿using System.Threading.Tasks;
-using Voguedi.AsyncExecution;
+using Voguedi.Infrastructure;
 using Voguedi.Messaging;
 
 namespace Voguedi.ApplicationMessages

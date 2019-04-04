@@ -8,11 +8,11 @@ namespace Voguedi.Domain.Caching
     {
         #region Methods
 
-        Task<IEventSourcedAggregateRoot> GetAsync(Type aggregateRootType, object aggregateRootId);
+        Task<TAggregateRoot> GetAsync<TAggregateRoot, TIdentity>(TIdentity aggregateRootId) where TAggregateRoot : class, IAggregateRoot<TIdentity>;
 
-        Task SetAsync(IEventSourcedAggregateRoot aggregateRoot);
+        Task SetAsync(IAggregateRoot aggregateRoot);
 
-        Task RefreshAsync(Type aggregateRootType, object aggregateRootId);
+        Task RefreshAsync(Type aggregateRootType, string aggregateRootId);
 
         void Start();
 

@@ -4,7 +4,7 @@ using Voguedi.Messaging;
 
 namespace Voguedi.Domain.Events
 {
-    public sealed class EventStreamMessage : Message
+    public class EventStreamMessage : Message
     {
         #region Public Properties
 

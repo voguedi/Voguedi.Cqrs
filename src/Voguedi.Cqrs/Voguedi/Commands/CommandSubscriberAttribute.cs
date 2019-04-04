@@ -2,7 +2,7 @@
 
 namespace Voguedi.Commands
 {
-    public sealed class CommandSubscriberAttribute : MessageSubscriberAttribute
+    public class CommandSubscriberAttribute : MessageSubscriberAttribute
     {
         #region Ctors
 

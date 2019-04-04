@@ -49,14 +49,14 @@ namespace Voguedi
 
         public async Task BootstrapperAsync(CancellationToken cancellationToken)
         {
-            logger.LogInformation("后台服务启动中...");
+            logger.LogDebug("框架服务启动中...");
 
             foreach (var storeService in storeServices)
                 await storeService.InitializeAsync(cancellationToken);
 
             cancellationToken.Register(() =>
             {
-                logger.LogInformation("后台服务停止中...");
+                logger.LogDebug("框架服务停止中...");
                 cache.Dispose();
 
                 foreach (var backgroundWorkerService in backgroundWorkerServices)
@@ -70,12 +70,13 @@ namespace Voguedi
                     }
                     catch (OperationCanceledException ex)
                     {
-                        logger.LogError(ex, $"订阅服务停止操作取消！ [SubscriberServiceType = {subscriberService.GetType()}]");
+                        logger.LogError(ex, $"订阅服务停止操作取消。 [SubscriberServiceType = {subscriberService.GetType()}]");
                     }
                 }
 
-                logger.LogInformation("后台服务已停止！");
+                logger.LogDebug("框架服务已停止。");
             });
+
             cache.Start();
 
             foreach (var backgroundWorkerService in backgroundWorkerServices)
@@ -89,11 +90,11 @@ namespace Voguedi
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, $"订阅服务启动失败！ [SubscriberServiceType = {subscriberService.GetType()}]");
+                    logger.LogError(ex, $"订阅服务启动失败。 [SubscriberServiceType = {subscriberService.GetType()}]");
                 }
             }
 
-            logger.LogInformation("后台服务已启动！");
+            logger.LogDebug("框架服务已启动。");
         }
 
         #endregion

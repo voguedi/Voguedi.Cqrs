@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Voguedi.MessageQueues;
 using Voguedi.Messaging;
 
 namespace Voguedi.Commands
@@ -8,12 +9,12 @@ namespace Voguedi.Commands
         #region Ctors
 
         public CommandSubscriber(
-            IMessageConsumerFactory consumerFactory,
+            IMessageQueueConsumerFactory queueConsumerFactory,
             IMessageSubscriptionManager subscriptionManager,
             ICommandProcessor processor,
             ILogger<CommandSubscriber> logger,
             VoguediOptions options)
-            : base(consumerFactory, subscriptionManager, processor, logger, options.DefaultCommandGroupName, options.DefaultCommandTopicQueueCount) { }
+            : base(queueConsumerFactory, subscriptionManager, processor, logger, options.DefaultCommandGroupName, options.DefaultCommandTopicQueueCount) { }
 
         #endregion
     }

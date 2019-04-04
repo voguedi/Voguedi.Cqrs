@@ -15,7 +15,7 @@ namespace Voguedi.Commands
 
         readonly ICache cache;
         readonly IRepository repository;
-        readonly ConcurrentDictionary<string, IEventSourcedAggregateRoot> aggregateRootMapping = new ConcurrentDictionary<string, IEventSourcedAggregateRoot>();
+        readonly ConcurrentDictionary<string, IAggregateRoot> aggregateRootMapping;
 
         #endregion
 
@@ -25,44 +25,45 @@ namespace Voguedi.Commands
         {
             this.cache = cache;
             this.repository = repository;
+            aggregateRootMapping = new ConcurrentDictionary<string, IAggregateRoot>();
         }
 
         #endregion
 
         #region IProcessingCommandHandlerContext
 
-        public IReadOnlyList<IEventSourcedAggregateRoot> GetAggregateRoots() => aggregateRootMapping.Values.ToList();
+        public IReadOnlyList<IAggregateRoot> GetAggregateRoots() => aggregateRootMapping.Values.ToList();
 
-        Task ICommandHandlerContext.CreateAggregateRootAsync<TAggregateRoot, TIdentity>(TAggregateRoot aggregateRoot)
+        Task ICommandHandlerContext.AddAsync<TAggregateRoot, TIdentity>(TAggregateRoot aggregateRoot)
         {
             if (aggregateRoot == null)
                 throw new ArgumentNullException(nameof(aggregateRoot));
 
-            if (Equals(aggregateRoot.Id, default(TIdentity)))
-                throw new ArgumentException(nameof(aggregateRoot), $"聚合根 {typeof(TAggregateRoot)} Id 不能为空！");
+            if (aggregateRoot.Id == null)
+                throw new ArgumentException($"聚合根 Id 不能为空。 [AggregateRootType = {typeof(TAggregateRoot)}]", nameof(aggregateRoot));
 
-            if (!aggregateRootMapping.TryAdd(aggregateRoot.Id.ToString(), aggregateRoot))
-                throw new ArgumentException(nameof(aggregateRoot), $"聚合根 [Type = {typeof(TAggregateRoot)}, Id = {aggregateRoot.Id}] 重复创建！");
+            if (aggregateRootMapping.TryAdd(aggregateRoot.Id.ToString(), aggregateRoot))
+                return Task.CompletedTask;
 
-            return Task.CompletedTask;
+            throw new ArgumentException($"聚合根重复创建。 [AggregateRootType = {typeof(TAggregateRoot)}, AggregateRootId = {aggregateRoot.Id}]", nameof(aggregateRoot));
         }
 
-        async Task<TAggregateRoot> ICommandHandlerContext.GetAggregateRootAsync<TAggregateRoot, TIdentity>(TIdentity aggregateRootId)
+        async Task<TAggregateRoot> ICommandHandlerContext.GetAsync<TAggregateRoot, TIdentity>(TIdentity aggregateRootId)
         {
-            if (Equals(aggregateRootId, default(TIdentity)))
+            if (aggregateRootId == null)
                 throw new ArgumentNullException(nameof(aggregateRootId));
 
             if (aggregateRootMapping.TryGetValue(aggregateRootId.ToString(), out var value) && value is TAggregateRoot aggregateRoot)
                 return aggregateRoot;
 
-            aggregateRoot = await cache.GetAsync(typeof(TAggregateRoot), aggregateRootId) as TAggregateRoot;
+            aggregateRoot = await cache.GetAsync<TAggregateRoot, TIdentity>(aggregateRootId);
 
             if (aggregateRoot == null)
-                aggregateRoot = await repository.GetAsync(typeof(TAggregateRoot), aggregateRootId) as TAggregateRoot;
+                aggregateRoot = await repository.GetAsync<TAggregateRoot, TIdentity>(aggregateRootId);
 
             if (aggregateRoot != null)
             {
-                aggregateRootMapping.TryAdd(aggregateRoot.GetAggregateRootId(), aggregateRoot);
+                aggregateRootMapping.TryAdd(aggregateRoot.Id.ToString(), aggregateRoot);
                 return aggregateRoot;
             }
 

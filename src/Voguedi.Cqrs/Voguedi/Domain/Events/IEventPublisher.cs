@@ -1,5 +1,5 @@
 ﻿using System.Threading.Tasks;
-using Voguedi.AsyncExecution;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Domain.Events
 {

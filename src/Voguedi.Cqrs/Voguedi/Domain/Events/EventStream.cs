@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Voguedi.Utils;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Domain.Events
 {
-    public sealed class EventStream
+    public class EventStream
     {
         #region Ctors
 
@@ -14,7 +14,7 @@ namespace Voguedi.Domain.Events
             foreach (var e in events)
             {
                 if (e.Version != version)
-                    throw new ArgumentException(nameof(events), $"聚合根 [Type = {aggregateRootTypeName}, Id = {aggregateRootId}] 版本 {version} 与事件 {e.GetType()} 版本 {e.Version} 不同！");
+                    throw new ArgumentException($"聚合根版本与事件版本不同。 [AggregateRootType = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, AggregateRootVersion = {version}, EventType = {e.GetType()}, EventId = {e.Id}, EventVersion = {e.Version}]", nameof(events));
             }
 
             Id = id;
@@ -27,8 +27,7 @@ namespace Voguedi.Domain.Events
         }
 
         public EventStream(long commandId, string aggregateRootTypeName, string aggregateRootId, long version, IReadOnlyList<IEvent> events)
-            : this(SnowflakeId.Instance.NewId(), DateTime.UtcNow, commandId, aggregateRootTypeName, aggregateRootId, version, events)
-        { }
+            : this(SnowflakeId.Default().NewId(), DateTime.UtcNow, commandId, aggregateRootTypeName, aggregateRootId, version, events) { }
 
         #endregion
 

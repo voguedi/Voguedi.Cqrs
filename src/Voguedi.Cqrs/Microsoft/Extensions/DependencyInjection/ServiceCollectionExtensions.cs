@@ -89,10 +89,11 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.TryAddSingleton<IMessageSubscriptionManager, MessageSubscriptionManager>();
             services.TryAddSingleton<IMessagePublisher, MessagePublisher>();
-
+            
             services.TryAddSingleton<ICommandSender, CommandSender>();
             services.TryAddSingleton<ICommandSubscriber, CommandSubscriber>();
             services.TryAddSingleton<ICommandProcessor, CommandProcessor>();
+            services.TryAddSingleton<ICommandExecutedResultProcessor, CommandExecutedResultProcessor>();
             services.TryAddSingleton<IProcessingCommandHandler, ProcessingCommandHandler>();
             services.TryAddSingleton<IProcessingCommandHandlerContextFactory, ProcessingCommandHandlerContextFactory>();
             services.TryAddSingleton<IProcessingCommandQueueFactory, ProcessingCommandQueueFactory>();

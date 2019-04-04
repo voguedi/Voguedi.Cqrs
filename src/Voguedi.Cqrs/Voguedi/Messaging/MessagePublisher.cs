@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
-using Voguedi.AsyncExecution;
-using Voguedi.ObjectSerializing;
+using Voguedi.Infrastructure;
+using Voguedi.MessageQueues;
+using Voguedi.ObjectSerializers;
 
 namespace Voguedi.Messaging
 {
@@ -8,7 +9,7 @@ namespace Voguedi.Messaging
     {
         #region Private Fields
 
-        readonly IMessageProducer producer;
+        readonly IMessageQueueProducer queueProducer;
         readonly IMessageSubscriptionManager subscriptionManager;
         readonly IStringObjectSerializer objectSerializer;
 
@@ -16,32 +17,25 @@ namespace Voguedi.Messaging
 
         #region Ctors
 
-        public MessagePublisher(IMessageProducer producer, IMessageSubscriptionManager subscriptionManager, IStringObjectSerializer objectSerializer)
+        public MessagePublisher(IMessageQueueProducer queueProducer, IMessageSubscriptionManager subscriptionManager, IStringObjectSerializer objectSerializer)
         {
-            this.producer = producer;
+            this.queueProducer = queueProducer;
             this.subscriptionManager = subscriptionManager;
             this.objectSerializer = objectSerializer;
         }
 
         #endregion
 
-        #region Private Methods
-
-        string BuildQueueMessage(IMessage message)
-        {
-            var queueMessage = new QueueMessage
-            {
-                Content = objectSerializer.Serialize(message),
-                Tag = message.GetType().AssemblyQualifiedName
-            };
-            return objectSerializer.Serialize(queueMessage);
-        }
-
-        #endregion
-
         #region IMessagePublisher
 
-        public Task<AsyncExecutedResult> PublishAsync(IMessage message) => producer.ProduceAsync(subscriptionManager.GetQueueTopic(message), BuildQueueMessage(message));
+        public Task<AsyncExecutedResult> PublishAsync(IMessage message)
+        {
+            return queueProducer.ProduceAsync(subscriptionManager.GetQueueTopic(message), objectSerializer.Serialize(new QueueMessage
+            {
+                Content = objectSerializer.Serialize(message),
+                Tag = message.GetTag()
+            }));
+        }
 
         #endregion
     }

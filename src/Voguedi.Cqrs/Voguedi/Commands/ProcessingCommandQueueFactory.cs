@@ -7,15 +7,17 @@ namespace Voguedi.Commands
         #region Private Fields
 
         readonly IProcessingCommandHandler handler;
+        readonly ICommandExecutedResultProcessor executedResultProcessor;
         readonly ILoggerFactory loggerFactory;
 
         #endregion
 
         #region Ctors
 
-        public ProcessingCommandQueueFactory(IProcessingCommandHandler handler, ILoggerFactory loggerFactory)
+        public ProcessingCommandQueueFactory(IProcessingCommandHandler handler, ICommandExecutedResultProcessor executedResultProcessor, ILoggerFactory loggerFactory)
         {
             this.handler = handler;
+            this.executedResultProcessor = executedResultProcessor;
             this.loggerFactory = loggerFactory;
         }
 
@@ -23,7 +25,8 @@ namespace Voguedi.Commands
 
         #region IProcessingCommandQueueFactory
 
-        public IProcessingCommandQueue Create(string aggregateRootId) => new ProcessingCommandQueue(aggregateRootId, handler, loggerFactory.CreateLogger<ProcessingCommandQueue>());
+        public IProcessingCommandQueue Create(string aggregateRootId)
+            => new ProcessingCommandQueue(aggregateRootId, handler, executedResultProcessor, loggerFactory.CreateLogger<ProcessingCommandQueue>());
 
         #endregion
     }

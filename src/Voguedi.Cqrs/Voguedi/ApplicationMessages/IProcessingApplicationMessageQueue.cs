@@ -8,9 +8,7 @@ namespace Voguedi.ApplicationMessages
 
         void Enqueue(ProcessingApplicationMessage processingApplicationMessage);
 
-        Task CommitAsync(ProcessingApplicationMessage processingApplicationMessage);
-
-        Task RejectAsync(ProcessingApplicationMessage processingApplicationMessage);
+        Task ProcessAsync();
 
         bool IsInactive(int expiration);
 

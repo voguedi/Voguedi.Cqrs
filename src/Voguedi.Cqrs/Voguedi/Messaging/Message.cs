@@ -1,5 +1,5 @@
 ﻿using System;
-using Voguedi.Utils;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Messaging
 {
@@ -9,7 +9,7 @@ namespace Voguedi.Messaging
 
         protected Message()
         {
-            Id = SnowflakeId.Instance.NewId();
+            Id = SnowflakeId.Default().NewId();
             Timestamp = DateTime.UtcNow;
         }
 
@@ -22,6 +22,8 @@ namespace Voguedi.Messaging
         public DateTime Timestamp { get; set; }
 
         public virtual string GetRoutingKey() => GetType().Name;
+
+        public string GetTag() => GetType().AssemblyQualifiedName;
 
         #endregion
     }

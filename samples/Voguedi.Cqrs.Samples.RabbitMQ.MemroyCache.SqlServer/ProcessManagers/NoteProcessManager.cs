@@ -1,9 +1,9 @@
 ﻿using System.Threading.Tasks;
 using Voguedi.ApplicationMessages;
-using Voguedi.AsyncExecution;
 using Voguedi.Commands;
 using Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.ApplicationMessages;
 using Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.Commands;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Cqrs.Samples.RabbitMQ.MemroyCache.SqlServer.ProcessManagers
 {

@@ -6,7 +6,8 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Voguedi.AsyncExecution;
+using Polly;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.ApplicationMessages
 {
@@ -16,7 +17,7 @@ namespace Voguedi.ApplicationMessages
         
         readonly IServiceProvider serviceProvider;
         readonly ILogger logger;
-        readonly ConcurrentDictionary<Type, IEnumerable<IApplicationMessageHandler>> handlerMapping = new ConcurrentDictionary<Type, IEnumerable<IApplicationMessageHandler>>();
+        readonly ConcurrentDictionary<Type, IEnumerable<IApplicationMessageHandler>> handlerMapping;
 
         #endregion
 
@@ -26,6 +27,7 @@ namespace Voguedi.ApplicationMessages
         {
             this.serviceProvider = serviceProvider;
             this.logger = logger;
+            handlerMapping = new ConcurrentDictionary<Type, IEnumerable<IApplicationMessageHandler>>();
         }
 
         #endregion
@@ -48,32 +50,25 @@ namespace Voguedi.ApplicationMessages
             var applicationMessage = processingMessage.ApplicationMessage;
             var applicationMessageType = applicationMessage.GetType();
             var handlerType = current.GetType();
+            var handlerMethod = handlerType.GetTypeInfo().GetMethod("HandleAsync", new[] { applicationMessageType });
+            var result = await Policy
+                .Handle<Exception>()
+                .OrResult<AsyncExecutedResult>(r => !r.Succeeded)
+                .WaitAndRetryForeverAsync(retryAttempt => TimeSpan.FromSeconds(Math.Pow(1, retryAttempt)),
+                    (delegateResult, retryCount, retryAttempt) => logger.LogError(delegateResult.Exception ?? delegateResult.Result.Exception, $"应用消息处理器执行失败。 [ApplicationMessageType = {applicationMessageType}, ApplicationMessageId = {applicationMessage.Id}, ApplicationMessageHandlerType = {handlerType}, RetryCount = {retryCount}, RetryAttempt = {retryAttempt}]"))
+                .ExecuteAsync(() => (Task<AsyncExecutedResult>)handlerMethod.Invoke(current, new object[] { applicationMessage }));
 
-            try
+            if (result.Succeeded)
             {
-                var handlerMethod = handlerType.GetTypeInfo().GetMethod("HandleAsync", new[] { applicationMessageType });
-                var result = await (Task<AsyncExecutedResult>)handlerMethod.Invoke(current, new object[] { applicationMessage });
+                logger.LogDebug($"应用消息处理器执行成功。 [ApplicationMessageType = {applicationMessageType}, ApplicationMessageId = {applicationMessage.Id}, ApplicationMessageHandlerType = {handlerType}]");
 
-                if (result.Succeeded)
-                {
-                    logger.LogInformation($"应用消息处理器执行成功！ [ApplicationMessageType = {applicationMessageType}, ApplicationMessageId = {applicationMessage.Id}, ApplicationMessageHandlerType = {handlerType}]");
-
-                    if (!queue.IsCompleted && queue.TryTake(out var next))
-                        await HandleApplicationMessageAsync(processingMessage, next, queue);
-                    else
-                        await processingMessage.OnQueueCommittedAsync();
-                }
+                if (!queue.IsCompleted && queue.TryTake(out var next) && next != null)
+                    await HandleApplicationMessageAsync(processingMessage, next, queue);
                 else
-                {
-                    logger.LogError(result.Exception, $"应用消息处理器执行失败！ [ApplicationMessageType = {applicationMessageType}, ApplicationMessageId = {applicationMessage.Id}, ApplicationMessageHandlerType = {handlerType}]");
-                    await processingMessage.OnQueueRejectedAsync();
-                }
+                    await processingMessage.OnQueueProcessedAsync();
             }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, $"应用消息处理器执行失败！ [MessageType = {applicationMessageType}, MessageId = {applicationMessage.Id}, MessageHandlerType = {handlerType}]");
-                await processingMessage.OnQueueRejectedAsync();
-            }
+            else
+                logger.LogError(result.Exception, $"应用消息处理器执行失败。 [ApplicationMessageType = {applicationMessageType}, ApplicationMessageId = {applicationMessage.Id}, ApplicationMessageHandlerType = {handlerType}]");
         }
 
         #endregion
@@ -98,11 +93,11 @@ namespace Voguedi.ApplicationMessages
                     if (!queue.IsCompleted && queue.TryTake(out var current))
                         return HandleApplicationMessageAsync(processingApplicationMessage, current, queue);
 
-                    return processingApplicationMessage.OnQueueCommittedAsync();
+                    return processingApplicationMessage.OnQueueProcessedAsync();
                 }
 
-                logger.LogInformation($"应用消息未注册任何处理器！ [ApplicationMessageType = {applicationMessageType}, ApplicationMessageId = {applicationMessage.Id}]");
-                return processingApplicationMessage.OnQueueCommittedAsync();
+                logger.LogDebug($"未注册任何应用消息处理器。 [ApplicationMessageType = {applicationMessageType}, ApplicationMessageId = {applicationMessage.Id}]");
+                return processingApplicationMessage.OnQueueProcessedAsync();
             }
         }
 

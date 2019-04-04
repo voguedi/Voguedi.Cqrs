@@ -3,9 +3,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Voguedi.BackgroundWorkers;
+using Voguedi.Infrastructure;
 using Voguedi.Messaging;
-using Voguedi.ObjectSerializing;
-using Voguedi.Utils;
+using Voguedi.ObjectSerializers;
 
 namespace Voguedi.Commands
 {
@@ -19,7 +19,7 @@ namespace Voguedi.Commands
         readonly ILogger logger;
         readonly int expiration;
         readonly string backgroundWorkerKey;
-        readonly ConcurrentDictionary<string, IProcessingCommandQueue> queueMapping = new ConcurrentDictionary<string, IProcessingCommandQueue>();
+        readonly ConcurrentDictionary<string, IProcessingCommandQueue> queueMapping;
         bool started;
         bool stopped;
 
@@ -39,7 +39,8 @@ namespace Voguedi.Commands
             this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             expiration = options.MemoryQueueExpiration;
-            backgroundWorkerKey = $"{nameof(CommandProcessor)}_{SnowflakeId.Instance.NewId()}";
+            backgroundWorkerKey = $"{nameof(CommandProcessor)}_{SnowflakeId.Default().NewId()}";
+            queueMapping = new ConcurrentDictionary<string, IProcessingCommandQueue>();
         }
 
         #endregion
@@ -59,7 +60,7 @@ namespace Voguedi.Commands
             foreach (var item in queue)
             {
                 if (queueMapping.TryRemove(item.Key))
-                    logger.LogInformation($"命令处理队列清理成功！ [AggregateRootId = {item.Key}, Expiration = {expiration}]");
+                    logger.LogDebug($"已过期队列清理成功。 [AggregateRootId = {item.Key}, Expiration = {expiration}]");
             }
         }
 
@@ -67,17 +68,17 @@ namespace Voguedi.Commands
 
         #region ICommandProcessor
 
-        public void Process(ReceivingMessage receivingMessage, IMessageConsumer consumer)
+        public void Process(string receivedMessage)
         {
-            var queueMessage = objectSerializer.Deserialize<QueueMessage>(receivingMessage.QueueMessage);
+            var queueMessage = objectSerializer.Deserialize<QueueMessage>(receivedMessage);
             var command = (ICommand)objectSerializer.Deserialize(queueMessage.Content, Type.GetType(queueMessage.Tag));
             var aggregateRootId = command.AggregateRootId;
 
             if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new Exception($"命令处理的聚合根 Id 不能为空！ [CommandType = {command.GetType()}, CommandId = {command.Id}]");
+                throw new ArgumentException($"命令处理的聚合根 Id 不能为空。 [CommandType = {command.GetType()}, CommandId = {command.Id}]", nameof(receivedMessage));
 
             var queue = queueMapping.GetOrAdd(aggregateRootId, queueFactory.Create);
-            queue.Enqueue(new ProcessingCommand(command, consumer));
+            queue.Enqueue(new ProcessingCommand(command));
         }
 
         public void Start()

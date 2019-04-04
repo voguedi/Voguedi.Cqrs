@@ -3,17 +3,17 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Voguedi.Domain.Entities;
 using Voguedi.Domain.Events;
+using Voguedi.Domain.ValueObjects;
 
 namespace Voguedi.Domain.AggregateRoots
 {
-    public abstract class AggregateRoot<TIdentity> : Entity<TIdentity>, IAggregateRoot<TIdentity>
+    public abstract class AggregateRoot<TIdentity> : ValueObject, IAggregateRoot<TIdentity>
     {
         #region Private Fields
 
-        readonly BlockingCollection<IEvent> uncommittedEvents = new BlockingCollection<IEvent>(new ConcurrentQueue<IEvent>());
-        readonly ConcurrentDictionary<Type, MethodInfo> eventHandleMethodMapping = new ConcurrentDictionary<Type, MethodInfo>();
+        readonly BlockingCollection<IEvent> uncommittedEvents;
+        readonly ConcurrentDictionary<Type, MethodInfo> eventHandleMethodMapping;
 
         #endregion
 
@@ -21,7 +21,15 @@ namespace Voguedi.Domain.AggregateRoots
 
         protected AggregateRoot() { }
 
-        protected AggregateRoot(TIdentity id) : base(id) { }
+        protected AggregateRoot(TIdentity id)
+        {
+            if (id == null)
+                throw new ArgumentNullException(nameof(TIdentity));
+
+            Id = id;
+            uncommittedEvents = new BlockingCollection<IEvent>(new ConcurrentQueue<IEvent>());
+            eventHandleMethodMapping = new ConcurrentDictionary<Type, MethodInfo>();
+        }
 
         #endregion
 
@@ -34,7 +42,7 @@ namespace Voguedi.Domain.AggregateRoots
             if (handleMethod != null)
                 handleMethod.Invoke(this, new[] { e });
             else
-                throw new ArgumentException($"聚合根处理事件失败，不存在事件处理方法！ [AggregateRootType = {GetAggregateRootType()}, EventType = {e.GetType()}]");
+                throw new ArgumentException($"事件处理失败，不存在处理方法。 [AggregateRootType = {GetType()}, AggregateRootId = {Id}, EventType = {e.GetType()}]", nameof(e));
         }
 
         MethodInfo GetEventHandleMethod(IEvent e)
@@ -61,7 +69,7 @@ namespace Voguedi.Domain.AggregateRoots
         void EnqueueEvent(IEvent e)
         {
             if (uncommittedEvents.Any(item => item.GetType() == e.GetType()))
-                throw new Exception($"聚合根无法重复添加事件！ [AggregateRootType = {GetAggregateRootType()}, EventType = {e.GetType()}]");
+                throw new ArgumentException($"无法重复添加类型相同的事件。 [AggregateRootType = {GetType()}, AggregateRootId = {Id}, EventType = {e.GetType()}]", nameof(e));
 
             uncommittedEvents.TryAdd(e);
         }
@@ -84,20 +92,29 @@ namespace Voguedi.Domain.AggregateRoots
 
         #endregion
 
+        #region ValueObject
+
+        protected override IEnumerable<object> GetEqualityPropertryValues()
+        {
+            yield return Id;
+        }
+
+        #endregion
+
         #region IAggregateRoot<TIdentity>
 
-        public long Version { get; private set; }
+        public TIdentity Id { get; protected set; }
 
-        public string GetAggregateRootId() => Id?.ToString();
+        public long Version { get; protected set; }
 
-        public Type GetAggregateRootType() => GetType();
+        string IAggregateRoot.Id => Id?.ToString();
 
         public IReadOnlyList<IEvent> GetUncommittedEvents() => uncommittedEvents.ToList();
 
         public void CommitEvents(long committedVersion)
         {
             if (committedVersion != Version + 1)
-                throw new ArgumentException(nameof(committedVersion), $"聚合根提交版本失败，与当前版本不匹配！ [AggregateRootType = {GetAggregateRootType()}, CurrentVerion = {Version}, CommittedVersion = {committedVersion}]");
+                throw new ArgumentException($"版本提交失败，与当前版本不匹配。 [AggregateRootType = {GetType()}, AggregateRootId = {Id}, CurrentVerion = {Version}, CommittedVersion = {committedVersion}]", nameof(committedVersion));
 
             Version = committedVersion;
             uncommittedEvents.Clear();
@@ -107,15 +124,13 @@ namespace Voguedi.Domain.AggregateRoots
         {
             if (eventStreams?.Count > 0)
             {
-                var exceptedVersion = Version + 1;
-
                 foreach (var eventStream in eventStreams)
                 {
                     if (eventStream.AggregateRootId != Id?.ToString())
-                        throw new ArgumentException(nameof(eventStream), $"聚合根重放事件失败，与当前 Id不同！ [AggregateRootType = {GetAggregateRootType()}, AggregateRootId = {GetAggregateRootId()}, EventStream = {eventStream}]");
+                        throw new ArgumentException($"事件重放失败，与当前 Id 不同。 [AggregateRootType = {GetType()}, AggregateRootId = {Id}, EventStream = {eventStream}]", nameof(eventStream));
 
                     if (eventStream.Version != Version + 1)
-                        throw new ArgumentException(nameof(eventStream), $"聚合根重放事件失败，与当前版本不匹配！ [AggregateRootType = {GetAggregateRootType()}, Version = {Version}, EventStream = {eventStream}]");
+                        throw new ArgumentException($"事件重放失败，与当前版本不匹配。 [AggregateRootType = {GetType()}, AggregateRootId = {Id}, Version = {Version}, EventStream = {eventStream}]", nameof(eventStream));
 
                     foreach (var e in eventStream.Events)
                         HandleEvent(e);

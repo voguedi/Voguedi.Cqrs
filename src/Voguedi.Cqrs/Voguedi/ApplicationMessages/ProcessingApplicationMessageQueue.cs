@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Nito.AsyncEx;
 
 namespace Voguedi.ApplicationMessages
 {
@@ -14,9 +13,8 @@ namespace Voguedi.ApplicationMessages
         readonly string routingKey;
         readonly IProcessingApplicationMessageHandler handler;
         readonly ILogger logger;
-        readonly BlockingCollection<ProcessingApplicationMessage> queue = new BlockingCollection<ProcessingApplicationMessage>(new ConcurrentQueue<ProcessingApplicationMessage>());
-        readonly object syncLock = new object();
-        readonly AsyncLock asyncLock = new AsyncLock();
+        readonly BlockingCollection<ProcessingApplicationMessage> queue;
+        readonly object syncLock;
         const int starting = 1;
         const int stop = 0;
         int isStarting;
@@ -31,6 +29,8 @@ namespace Voguedi.ApplicationMessages
             this.routingKey = routingKey;
             this.handler = handler;
             this.logger = logger;
+            queue = new BlockingCollection<ProcessingApplicationMessage>(new ConcurrentQueue<ProcessingApplicationMessage>());
+            syncLock = new object();
             lastActiveOn = DateTime.UtcNow;
         }
 
@@ -41,7 +41,7 @@ namespace Voguedi.ApplicationMessages
         void TryStart()
         {
             if (Interlocked.CompareExchange(ref isStarting, starting, stop) == stop)
-                Task.Factory.StartNew(async () => await StartAsync());
+                Task.Factory.StartNew(StartAsync);
         }
 
         async Task StartAsync()
@@ -51,15 +51,12 @@ namespace Voguedi.ApplicationMessages
 
             try
             {
-                while (!queue.IsCompleted)
-                {
-                    if (queue.TryTake(out processingMessage) && processingMessage != null)
-                        await handler.HandleAsync(processingMessage);
-                }
+                while (!queue.IsCompleted && queue.TryTake(out processingMessage))
+                    await handler.HandleAsync(processingMessage);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"应用消息处理队列启动失败！ [RoutingKey = {routingKey}]");
+                logger.LogError(ex, $"队列启动失败。 [RoutingKey = {routingKey}]");
                 Thread.Sleep(1);
             }
             finally
@@ -80,15 +77,6 @@ namespace Voguedi.ApplicationMessages
 
         #region IProcessingApplicationMessageQueue
 
-        public async Task CommitAsync(ProcessingApplicationMessage processingApplicationMessage)
-        {
-            using (await asyncLock.LockAsync())
-            {
-                lastActiveOn = DateTime.UtcNow;
-                await processingApplicationMessage.OnConsumerCommittedAsync();
-            }
-        }
-
         public void Enqueue(ProcessingApplicationMessage processingApplicationMessage)
         {
             lock (syncLock)
@@ -101,16 +89,13 @@ namespace Voguedi.ApplicationMessages
             TryStart();
         }
 
-        public bool IsInactive(int expiration) => (DateTime.UtcNow - lastActiveOn).TotalSeconds >= expiration && isStarting == starting;
-
-        public async Task RejectAsync(ProcessingApplicationMessage processingApplicationMessage)
+        public Task ProcessAsync()
         {
-            using (await asyncLock.LockAsync())
-            {
-                lastActiveOn = DateTime.UtcNow;
-                await processingApplicationMessage.OnConsumerRejectedAsync();
-            }
+            lastActiveOn = DateTime.UtcNow;
+            return Task.CompletedTask;
         }
+
+        public bool IsInactive(int expiration) => (DateTime.UtcNow - lastActiveOn).TotalSeconds >= expiration && isStarting == starting;
 
         #endregion
     }

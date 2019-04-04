@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace Voguedi.Utils
+namespace Voguedi.Infrastructure
 {
-    public static class Helper
+    public static class Utils
     {
         #region Public Methods
 
@@ -19,7 +19,7 @@ namespace Voguedi.Utils
             return hashCode;
         }
 
-        public static int GetServerIndex(string routingKey, int serverCount) => GetHashCode(routingKey) % serverCount;
+        public static int GetServerKey(string routingKey, int serverCount) => GetHashCode(routingKey) % serverCount;
 
         #endregion
     }

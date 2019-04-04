@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Voguedi.MessageQueues;
 using Voguedi.Messaging;
 
 namespace Voguedi.Domain.Events
@@ -8,12 +9,12 @@ namespace Voguedi.Domain.Events
         #region Ctors
 
         public EventSubscriber(
-            IMessageConsumerFactory consumerFactory,
+            IMessageQueueConsumerFactory queueConsumerFactory,
             IMessageSubscriptionManager subscriptionManager,
             IEventProcessor processor,
             ILogger<EventSubscriber> logger,
             VoguediOptions options)
-            : base(consumerFactory, subscriptionManager, processor, logger, options.DefaultEventGroupName, options.DefaultEventTopicQueueCount) { }
+            : base(queueConsumerFactory, subscriptionManager, processor, logger, options.DefaultEventGroupName, options.DefaultEventTopicQueueCount) { }
 
         #endregion
     }

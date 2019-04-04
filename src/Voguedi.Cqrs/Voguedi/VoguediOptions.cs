@@ -4,11 +4,17 @@ using System.Reflection;
 
 namespace Voguedi
 {
-    public sealed class VoguediOptions
+    public class VoguediOptions
     {
         #region Private Fields
 
         readonly List<IServiceRegistrar> registrars = new List<IServiceRegistrar>();
+
+        #endregion
+
+        #region Internal Fields
+
+        public const string DiagnosticListenerName = "VoguediDiagnosticListener";
 
         #endregion
 
@@ -37,6 +43,8 @@ namespace Voguedi
         public int AggregateRootExpiration { get; set; } = 3 * 24 * 60 * 60 * 1000;
 
         public int MemoryQueueExpiration { get; set; } = 5 * 1000;
+
+        public string CommandExecutedResultReplyAddress { get; set; }
 
         #endregion
 

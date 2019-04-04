@@ -1,5 +1,5 @@
 ﻿using System.Threading.Tasks;
-using Voguedi.AsyncExecution;
+using Voguedi.Infrastructure;
 using Voguedi.Messaging;
 
 namespace Voguedi.Commands
@@ -15,7 +15,7 @@ namespace Voguedi.Commands
         #region Ctors
 
         public CommandSender(IMessagePublisher publisher) => this.publisher = publisher;
-        
+
         #endregion
 
         #region ICommandSender

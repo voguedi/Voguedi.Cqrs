@@ -1,5 +1,4 @@
 ﻿using System.Threading.Tasks;
-using Voguedi.Messaging;
 
 namespace Voguedi.ApplicationMessages
 {
@@ -7,11 +6,7 @@ namespace Voguedi.ApplicationMessages
     {
         #region Ctors
 
-        public ProcessingApplicationMessage(IApplicationMessage applicationMessage, IMessageConsumer consumer)
-        {
-            ApplicationMessage = applicationMessage;
-            Consumer = consumer;
-        }
+        public ProcessingApplicationMessage(IApplicationMessage applicationMessage) => ApplicationMessage = applicationMessage;
 
         #endregion
 
@@ -19,29 +14,13 @@ namespace Voguedi.ApplicationMessages
 
         public IApplicationMessage ApplicationMessage { get; }
 
-        public IMessageConsumer Consumer { get; }
-
         public IProcessingApplicationMessageQueue Queue { get; set; }
 
         #endregion
 
         #region Public Methods
 
-        public Task OnConsumerCommittedAsync()
-        {
-            Consumer.Commit();
-            return Task.CompletedTask;
-        }
-
-        public Task OnConsumerRejectedAsync()
-        {
-            Consumer.Reject();
-            return Task.CompletedTask;
-        }
-
-        public Task OnQueueCommittedAsync() => Queue.CommitAsync(this);
-
-        public Task OnQueueRejectedAsync() => Queue.RejectAsync(this);
+        public Task OnQueueProcessedAsync() => Queue.ProcessAsync();
 
         #endregion
     }

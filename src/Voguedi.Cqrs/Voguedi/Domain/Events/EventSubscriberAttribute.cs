@@ -2,7 +2,7 @@
 
 namespace Voguedi.Domain.Events
 {
-    public sealed class EventSubscriberAttribute : MessageSubscriberAttribute
+    public class EventSubscriberAttribute : MessageSubscriberAttribute
     {
         #region Ctors
 

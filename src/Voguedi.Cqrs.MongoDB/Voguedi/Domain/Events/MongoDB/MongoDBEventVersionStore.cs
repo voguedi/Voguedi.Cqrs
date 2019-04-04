@@ -3,10 +3,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
-using Voguedi.AsyncExecution;
-using Voguedi.Utils;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Domain.Events.MongoDB
 {
@@ -42,13 +40,12 @@ namespace Voguedi.Domain.Events.MongoDB
         readonly IClientSessionHandle session;
         readonly string collectionName;
         readonly IMongoCollection<EventVersionDescriptor> collection;
-        readonly ILogger logger;
 
         #endregion
 
         #region Ctors
 
-        public MongoDBEventVersionStore(IServiceProvider serviceProvider, ILogger<MongoDBEventStore> logger, MongoDBOptions options)
+        public MongoDBEventVersionStore(IServiceProvider serviceProvider, MongoDBOptions options)
         {
             client = serviceProvider.GetRequiredService<IMongoClient>();
             database = client.GetDatabase(options.DatabaseName);
@@ -56,7 +53,6 @@ namespace Voguedi.Domain.Events.MongoDB
             session.StartTransaction();
             collectionName = options.EventVersionCollectionName;
             collection = database.GetCollection<EventVersionDescriptor>(collectionName);
-            this.logger = logger;
         }
 
         #endregion
@@ -74,17 +70,15 @@ namespace Voguedi.Domain.Events.MongoDB
                     AggregateRootId = aggregateRootId,
                     AggregateRootTypeName = aggregateRootTypeName,
                     CreatedOn = DateTime.UtcNow,
-                    Id = SnowflakeId.Instance.NewId(),
+                    Id = SnowflakeId.Default().NewId(),
                     Version = 1
                 };
                 await collection.InsertOneAsync(session, descriptor);
                 await session.CommitTransactionAsync();
-                logger.LogInformation($"存储已发布事件版本成功！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, Version = 1]");
                 return AsyncExecutedResult.Success;
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"存储已发布事件版本失败！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, Version = 1]");
                 return AsyncExecutedResult.Failed(ex);
             }
         }
@@ -104,11 +98,10 @@ namespace Voguedi.Domain.Events.MongoDB
                     await session.CommitTransactionAsync();
                 }
 
-                throw new Exception("未获取任何已发布事件版本！");
+                throw new Exception("未获取到任何事件版本。");
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"存储已发布事件版本失败！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, Version = {version}]");
                 return AsyncExecutedResult.Failed(ex);
             }
         }
@@ -124,17 +117,12 @@ namespace Voguedi.Domain.Events.MongoDB
                 var descriptor = GetAll().FirstOrDefault(d => d.AggregateRootTypeName == aggregateRootTypeName && d.AggregateRootId == aggregateRootId);
 
                 if (descriptor != null)
-                {
-                    logger.LogInformation($"获取已发布事件版本成功！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, Version = {descriptor.Version}]");
                     return Task.FromResult(AsyncExecutedResult<long>.Success(descriptor.Version));
-                }
 
-                logger.LogInformation($"未获取任何已发布事件版本！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}]");
                 return Task.FromResult(AsyncExecutedResult<long>.Success(0));
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"获取已发布事件版本失败！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}]");
                 return Task.FromResult(AsyncExecutedResult<long>.Failed(ex));
             }
         }
@@ -155,8 +143,6 @@ namespace Voguedi.Domain.Events.MongoDB
 
                 if (collectionNames == null || collectionNames.Count == 0 || collectionNames.All(c => c != collectionName))
                     await database.CreateCollectionAsync(collectionName, cancellationToken: cancellationToken);
-
-                logger.LogInformation($"已发布事件版本存储器初始化成功！ [CollectionName = {collectionName}]");
             }
         }
 

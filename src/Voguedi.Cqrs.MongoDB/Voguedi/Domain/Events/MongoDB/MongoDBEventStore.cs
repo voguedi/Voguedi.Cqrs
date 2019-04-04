@@ -4,9 +4,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
-using Voguedi.AsyncExecution;
+using Voguedi.Infrastructure;
 
 namespace Voguedi.Domain.Events.MongoDB
 {
@@ -19,13 +18,12 @@ namespace Voguedi.Domain.Events.MongoDB
         readonly IClientSessionHandle session;
         readonly string collectionName;
         readonly IMongoCollection<EventStream> collection;
-        readonly ILogger logger;
 
         #endregion
 
         #region Ctors
 
-        public MongoDBEventStore(IServiceProvider serviceProvider, ILogger<MongoDBEventStore> logger, MongoDBOptions options)
+        public MongoDBEventStore(IServiceProvider serviceProvider, MongoDBOptions options)
         {
             client = serviceProvider.GetRequiredService<IMongoClient>();
             database = client.GetDatabase(options.DatabaseName);
@@ -33,7 +31,6 @@ namespace Voguedi.Domain.Events.MongoDB
             session.StartTransaction();
             collectionName = options.EventCollectionName;
             collection = database.GetCollection<EventStream>(collectionName);
-            this.logger = logger;
         }
 
         #endregion
@@ -61,20 +58,18 @@ namespace Voguedi.Domain.Events.MongoDB
                     e.Version <= maxVersion);
 
                 if (streams?.Count() > 0)
-                {
-                    logger.LogInformation($"获取事件成功！ EventStreams = [{streams.Select(s => s.ToString())}]");
                     return Task.FromResult(AsyncExecutedResult<IReadOnlyList<EventStream>>.Success(streams.ToList()));
-                }
 
-                logger.LogError($"未获取任何事件！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, MinVersion = {minVersion}, MaxVersion = {maxVersion}]");
                 return Task.FromResult(AsyncExecutedResult<IReadOnlyList<EventStream>>.Success(null));
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"未获取任何事件！ [AggregateRootTypeName = {aggregateRootTypeName}, AggregateRootId = {aggregateRootId}, MinVersion = {minVersion}, MaxVersion = {maxVersion}]");
                 return Task.FromResult(AsyncExecutedResult<IReadOnlyList<EventStream>>.Failed(ex));
             }
-}
+        }
+
+        Task<AsyncExecutedResult<IReadOnlyList<EventStream>>> IEventStore.GetAllAsync<TAggregateRoot, TIdentity>(TIdentity aggregateRootId, long minVersion, long maxVersion)
+            => GetAllAsync(typeof(TAggregateRoot).FullName, aggregateRootId.ToString(), minVersion, maxVersion);
 
         public Task<AsyncExecutedResult<EventStream>> GetByCommandIdAsync(string aggregateRootId, long commandId)
         {
@@ -83,17 +78,12 @@ namespace Voguedi.Domain.Events.MongoDB
                 var stream = GetAll().FirstOrDefault(e => e.AggregateRootId == aggregateRootId && e.CommandId == commandId);
 
                 if (stream != null)
-                {
-                    logger.LogInformation($"获取事件成功！ {stream}");
                     return Task.FromResult(AsyncExecutedResult<EventStream>.Success(stream));
-                }
 
-                logger.LogError($"未获取任何事件！ [AggregateRootId = {aggregateRootId}, CommandId = {commandId}]");
                 return Task.FromResult(AsyncExecutedResult<EventStream>.Success(null));
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"获取事件失败！ [AggregateRootId = {aggregateRootId}, CommandId = {commandId}]");
                 return Task.FromResult(AsyncExecutedResult<EventStream>.Failed(ex));
             }
 }
@@ -105,17 +95,12 @@ namespace Voguedi.Domain.Events.MongoDB
                 var stream = GetAll().FirstOrDefault(e => e.AggregateRootId == aggregateRootId && e.Version == version);
 
                 if (stream != null)
-                {
-                    logger.LogInformation($"获取事件成功！ {stream}");
                     return Task.FromResult(AsyncExecutedResult<EventStream>.Success(stream));
-                }
 
-                logger.LogError($"未获取任何事件！ [AggregateRootId = {aggregateRootId}, Version = {version}]");
                 return Task.FromResult(AsyncExecutedResult<EventStream>.Success(null));
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"未获取任何事件！ [AggregateRootId = {aggregateRootId}, Version = {version}]");
                 return Task.FromResult(AsyncExecutedResult<EventStream>.Failed(ex));
             }
         }
@@ -123,27 +108,19 @@ namespace Voguedi.Domain.Events.MongoDB
         public async Task<AsyncExecutedResult<EventStreamSavedResult>> SaveAsync(EventStream stream)
         {
             if (GetAll().Any(e => e.AggregateRootId == stream.AggregateRootId && e.Version == stream.Version))
-            {
-                logger.LogWarning($"事件存储失败，存在相同版本！ {stream}");
                 return AsyncExecutedResult<EventStreamSavedResult>.Success(EventStreamSavedResult.DuplicatedEvent);
-            }
 
             if (GetAll().Any(e => e.AggregateRootId == stream.AggregateRootId && e.CommandId == stream.CommandId))
-            {
-                logger.LogWarning($"事件存储失败，存在相同命令！ {stream}");
                 return AsyncExecutedResult<EventStreamSavedResult>.Success(EventStreamSavedResult.DuplicatedCommand);
-            }
 
             try
             {
                 await collection.InsertOneAsync(session, stream);
                 await session.CommitTransactionAsync();
-                logger.LogInformation($"事件存储成功！ {stream}");
                 return AsyncExecutedResult<EventStreamSavedResult>.Success(EventStreamSavedResult.Success);
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"事件存储失败！ {stream}");
                 return AsyncExecutedResult<EventStreamSavedResult>.Failed(ex, EventStreamSavedResult.Failed);
             }
         }
@@ -156,8 +133,6 @@ namespace Voguedi.Domain.Events.MongoDB
 
                 if (collectionNames == null || collectionNames.Count == 0 || collectionNames.All(c => c != collectionName))
                     await database.CreateCollectionAsync(collectionName, cancellationToken: cancellationToken);
-                
-                logger.LogInformation($"事件存储器初始化成功！ [CollectionName = {collectionName}]");
             }
         }
 

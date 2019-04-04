@@ -3,9 +3,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Voguedi.BackgroundWorkers;
-using Voguedi.Messaging;
-using Voguedi.ObjectSerializing;
-using Voguedi.Utils;
+using Voguedi.Infrastructure;
+using Voguedi.ObjectSerializers;
 
 namespace Voguedi.Domain.Events
 {
@@ -19,7 +18,7 @@ namespace Voguedi.Domain.Events
         readonly ILogger logger;
         readonly int expiration;
         readonly string backgroundWorkerKey;
-        readonly ConcurrentDictionary<string, IProcessingEventQueue> queueMapping = new ConcurrentDictionary<string, IProcessingEventQueue>();
+        readonly ConcurrentDictionary<string, IProcessingEventQueue> queueMapping;
         bool started;
         bool stopped;
 
@@ -39,7 +38,8 @@ namespace Voguedi.Domain.Events
             this.backgroundWorker = backgroundWorker;
             this.logger = logger;
             expiration = options.MemoryQueueExpiration;
-            backgroundWorkerKey = $"{nameof(EventProcessor)}_{SnowflakeId.Instance.NewId()}";
+            backgroundWorkerKey = $"{nameof(EventProcessor)}_{SnowflakeId.Default().NewId()}";
+            queueMapping = new ConcurrentDictionary<string, IProcessingEventQueue>();
         }
 
         #endregion
@@ -59,7 +59,7 @@ namespace Voguedi.Domain.Events
             foreach (var item in queue)
             {
                 if (queueMapping.TryRemove(item.Key))
-                    logger.LogInformation($"不活跃命令处理队列清理成功！ [AggregateRootId = {item.Key}, Expiration = {expiration}]");
+                    logger.LogDebug($"已过期队列清理成功。 [AggregateRootId = {item.Key}, Expiration = {expiration}]");
             }
         }
 
@@ -67,13 +67,13 @@ namespace Voguedi.Domain.Events
 
         #region IEventProcessor
 
-        public void Process(ReceivingMessage receivingMessage, IMessageConsumer consumer)
+        public void Process(string receivedMessage)
         {
-            var streamMessage = objectSerializer.Deserialize<EventStreamMessage>(receivingMessage.QueueMessage);
+            var streamMessage = objectSerializer.Deserialize<EventStreamMessage>(receivedMessage);
             var aggregateRootId = streamMessage.AggregateRootId;
 
             if (string.IsNullOrWhiteSpace(aggregateRootId))
-                throw new Exception($"事件处理的聚合根 Id 不能为空！ [EventStreamMessage = {streamMessage}]");
+                throw new ArgumentException($"事件处理的聚合根 Id 不能为空。 [EventStreamMessage = {streamMessage}]", nameof(receivedMessage));
 
             var events = new List<IEvent>();
 
@@ -89,7 +89,7 @@ namespace Voguedi.Domain.Events
                 streamMessage.AggregateRootId,
                 streamMessage.Version,
                 events);
-            queue.Enqueue(new ProcessingEvent(stream, consumer));
+            queue.Enqueue(new ProcessingEvent(stream));
         }
 
         public void Start()

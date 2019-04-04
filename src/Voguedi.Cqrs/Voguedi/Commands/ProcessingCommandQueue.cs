@@ -13,20 +13,21 @@ namespace Voguedi.Commands
 
         readonly string aggregateRootId;
         readonly IProcessingCommandHandler handler;
+        readonly ICommandExecutedResultProcessor executedResultProcessor;
         readonly ILogger logger;
-        readonly ConcurrentDictionary<long, ProcessingCommand> queue = new ConcurrentDictionary<long, ProcessingCommand>();
-        readonly ConcurrentDictionary<long, ProcessingCommand> waitingQueue = new ConcurrentDictionary<long, ProcessingCommand>();
-        readonly ManualResetEvent pausingHandle = new ManualResetEvent(false);
-        readonly ManualResetEvent processingHandle = new ManualResetEvent(false);
-        readonly object syncLock = new object();
-        readonly AsyncLock asyncLock = new AsyncLock();
+        readonly ConcurrentDictionary<long, ProcessingCommand> queue;
+        readonly ConcurrentDictionary<long, CommandExecutedResult> waitingQueue;
+        readonly ManualResetEvent pausingHandle;
+        readonly ManualResetEvent processingHandle;
+        readonly object syncLock;
+        readonly AsyncLock asyncLock;
         const int starting = 1;
         const int stop = 0;
         const int timeout = 1000;
         int isStarting;
         bool isPausing;
         bool isProcessing;
-        long previousSequence = -1;
+        long previousSequence;
         long currentSequence;
         long nextSequence;
         DateTime lastActiveOn;
@@ -35,11 +36,23 @@ namespace Voguedi.Commands
 
         #region Ctors
 
-        public ProcessingCommandQueue(string aggregateRootId, IProcessingCommandHandler handler, ILogger<ProcessingCommandQueue> logger)
+        public ProcessingCommandQueue(
+            string aggregateRootId,
+            IProcessingCommandHandler handler,
+            ICommandExecutedResultProcessor executedResultProcessor,
+            ILogger<ProcessingCommandQueue> logger)
         {
             this.aggregateRootId = aggregateRootId;
             this.handler = handler;
+            this.executedResultProcessor = executedResultProcessor;
             this.logger = logger;
+            queue = new ConcurrentDictionary<long, ProcessingCommand>();
+            waitingQueue = new ConcurrentDictionary<long, CommandExecutedResult>();
+            pausingHandle = new ManualResetEvent(false);
+            processingHandle = new ManualResetEvent(false);
+            syncLock = new object();
+            asyncLock = new AsyncLock();
+            previousSequence = -1;
             lastActiveOn = DateTime.UtcNow;
         }
 
@@ -50,7 +63,7 @@ namespace Voguedi.Commands
         void TryStart()
         {
             if (Interlocked.CompareExchange(ref isStarting, starting, stop) == stop)
-                Task.Factory.StartNew(async () => await StartAsync());
+                Task.Factory.StartNew(StartAsync);
         }
 
         async Task StartAsync()
@@ -59,7 +72,7 @@ namespace Voguedi.Commands
 
             while (isPausing)
             {
-                logger.LogInformation($"命令处理队列当前状态为暂停，等待并重新启动！ [AggregateRootId = {aggregateRootId}]");
+                logger.LogDebug($"队列当前状态为暂停，等待并重新启动。 [AggregateRootId = {aggregateRootId}]");
                 pausingHandle.WaitOne(timeout);
             }
 
@@ -72,7 +85,7 @@ namespace Voguedi.Commands
 
                 while (currentSequence < nextSequence)
                 {
-                    if (queue.TryGetValue(currentSequence, out processingCommand) && processingCommand != null)
+                    if (queue.TryGetValue(currentSequence, out processingCommand))
                         await handler.HandleAsync(processingCommand);
 
                     currentSequence++;
@@ -80,7 +93,7 @@ namespace Voguedi.Commands
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"命令处理队列启动失败！ [AggregateRootId = {aggregateRootId}, CommandType = {processingCommand?.Command?.GetType()}, CommandId = {processingCommand?.Command?.Id}]");
+                logger.LogError(ex, $"处理队列启动失败。 [AggregateRootId = {aggregateRootId}, CommandType = {processingCommand?.Command?.GetType()}, CommandId = {processingCommand?.Command?.Id}]");
                 Thread.Sleep(1);
             }
             finally
@@ -96,42 +109,22 @@ namespace Voguedi.Commands
 
         void Stop() => Interlocked.Exchange(ref isStarting, stop);
 
-        async Task<long> CommitWaitingAsync(long committingSequence)
+        async Task<long> ProcessWaitingAsync(long processingSequence)
         {
-            var commitedSequence = committingSequence;
-            var waitingSequence = committingSequence + 1;
-            var waitingProcessingCommand = default(ProcessingCommand);
+            var processedSequence = processingSequence;
+            var waitingSequence = processingSequence + 1;
 
             while (waitingQueue.ContainsKey(waitingSequence))
             {
-                if (queue.TryRemove(waitingSequence, out waitingProcessingCommand))
-                    await waitingProcessingCommand.OnConsumerCommittedAsync();
+                if (queue.TryRemove(waitingSequence, out var waitingProcessingCommand))
+                    await executedResultProcessor.ProcessAsync(waitingProcessingCommand, waitingQueue[waitingSequence]);
 
                 waitingQueue.TryRemove(waitingSequence);
-                commitedSequence = waitingSequence;
+                processedSequence = waitingSequence;
                 waitingSequence++;
             }
 
-            return commitedSequence;
-        }
-
-        async Task<long> RejectWaitingAsync(long rejectingSequence)
-        {
-            var rejectedSequence = rejectingSequence;
-            var waitingSequence = rejectingSequence + 1;
-            var waitingProcessingCommand = default(ProcessingCommand);
-
-            while (waitingQueue.ContainsKey(waitingSequence))
-            {
-                if (queue.TryRemove(waitingSequence, out waitingProcessingCommand))
-                    await waitingProcessingCommand.OnConsumerRejectedAsync();
-
-                waitingQueue.TryRemove(waitingSequence);
-                rejectedSequence = waitingSequence;
-                waitingSequence++;
-            }
-
-            return rejectedSequence;
+            return processedSequence;
         }
 
         #endregion
@@ -160,7 +153,7 @@ namespace Voguedi.Commands
 
             while (isProcessing)
             {
-                logger.LogInformation($"命令处理队列当前状态已启动，等待并暂停！ [AggregateRootId = {aggregateRootId}]");
+                logger.LogDebug($"队列当前状态已启动，等待并暂停。 [AggregateRootId = {aggregateRootId}]");
                 processingHandle.WaitOne(timeout);
             }
 
@@ -182,68 +175,31 @@ namespace Voguedi.Commands
             TryStart();
         }
 
-        public async Task CommitAsync(ProcessingCommand processingCommand)
+        public async Task ProcessAsync(ProcessingCommand processingCommand, CommandExecutedResult executedResult)
         {
             using (await asyncLock.LockAsync())
             {
                 lastActiveOn = DateTime.UtcNow;
-                var command = processingCommand.Command;
-                var committingSequence = processingCommand.QueueSequence;
-                var exceptedSequence = previousSequence + 1;
 
                 try
                 {
-                    if (committingSequence == exceptedSequence)
+                    if (processingCommand.QueueSequence == previousSequence + 1)
                     {
-                        queue.TryRemove(processingCommand.QueueSequence, out var removed);
-                        await processingCommand.OnConsumerCommittedAsync();
-                        previousSequence = await CommitWaitingAsync(committingSequence);
+                        queue.TryRemove(processingCommand.QueueSequence);
+                        previousSequence = await ProcessWaitingAsync(processingCommand.QueueSequence);
                     }
-                    else if (committingSequence > exceptedSequence)
-                        waitingQueue[committingSequence] = processingCommand;
+                    else if (processingCommand.QueueSequence > previousSequence + 1)
+                        waitingQueue[processingCommand.QueueSequence] = executedResult;
                     else
                     {
-                        queue.TryRemove(committingSequence);
-                        await processingCommand.OnConsumerCommittedAsync();
-                        waitingQueue.TryRemove(committingSequence);
+                        queue.TryRemove(processingCommand.QueueSequence);
+                        await executedResultProcessor.ProcessAsync(processingCommand, executedResult);
+                        waitingQueue.TryRemove(processingCommand.QueueSequence);
                     }
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, $"命令处理队列提交失败！ [AggregateRootId = {aggregateRootId}, CommandType = {command.GetType()}, CommandId = {command.Id}]");
-                }
-            }
-        }
-
-        public async Task RejectAsync(ProcessingCommand processingCommand)
-        {
-            using (await asyncLock.LockAsync())
-            {
-                lastActiveOn = DateTime.UtcNow;
-                var command = processingCommand.Command;
-                var rejectingSequence = processingCommand.QueueSequence;
-                var exceptedSequence = previousSequence + 1;
-
-                try
-                {
-                    if (rejectingSequence == exceptedSequence)
-                    {
-                        queue.TryRemove(processingCommand.QueueSequence, out var removed);
-                        await processingCommand.OnConsumerRejectedAsync();
-                        previousSequence = await RejectWaitingAsync(rejectingSequence);
-                    }
-                    else if (rejectingSequence > exceptedSequence)
-                        await processingCommand.OnConsumerRejectedAsync();
-                    else
-                    {
-                        queue.TryRemove(rejectingSequence);
-                        await processingCommand.OnConsumerRejectedAsync();
-                        waitingQueue.TryRemove(rejectingSequence);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, $"命令处理队列拒绝失败！ [AggregateRootId = {aggregateRootId}, CommandType = {command.GetType()}, CommandId = {command.Id}]");
+                    logger.LogError(ex, $"队列处理失败。 [AggregateRootId = {aggregateRootId}, CommandType = {processingCommand.Command.GetType()}, CommandId = {processingCommand.Command.Id}]");
                 }
             }
         }
