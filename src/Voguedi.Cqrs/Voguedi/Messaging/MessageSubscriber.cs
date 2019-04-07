@@ -67,6 +67,32 @@ namespace Voguedi.Messaging
                     queueConsumer.Reject();
                 }
             };
+            queueConsumer.Logged += (sender, e) =>
+            {
+                switch (e.LogType)
+                {
+                    case MessageQueueLogType.KafkaOnConsumeError:
+                        logger.LogError($"Kafka 消费异常。原因：{e.LogMessage}");
+                        break;
+                    case MessageQueueLogType.KafkaOnError:
+                        logger.LogError($"Kafka 连接异常。原因：{e.LogMessage}");
+                        break;
+                    case MessageQueueLogType.RabbitMQConsumerCancelled:
+                        logger.LogWarning($"RabbitMQ 消费者消费取消。 [ConsumerTag = {e.LogMessage}]");
+                        break;
+                    case MessageQueueLogType.RabbitMQRegistered:
+                        logger.LogDebug($"RabbitMQ 消费者注册成功。 [ConsumerTag = {e.LogMessage}]");
+                        break;
+                    case MessageQueueLogType.RabbitMQShutdown:
+                        logger.LogWarning($"RabbitMQ 消费者异常关闭！原因：{e.LogMessage}");
+                        break;
+                    case MessageQueueLogType.RabbitMQUnregistered:
+                        logger.LogWarning($"RabbitMQ 消费者未注册！ [ConsumerTag = {e.LogMessage}]");
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(e));
+                }
+            };
         }
 
         #endregion
